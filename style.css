@@ -2,6 +2,7 @@ body {
   margin: 0;
   overflow: hidden; /* Prevent scrollbars */
   background-color: #34495e; /* Add a sky-like background color */
+  font-family: monospace;
 }
 
 /* WebGL canvas fills the viewport */
@@ -23,4 +24,85 @@ body {
   height: 100vh;
   z-index: 1; /* On top of the WebGL canvas */
   pointer-events: none; /* HUD doesn't need clicks */
+}
+
+/* Help Menu Styles */
+#helpMenu {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  background-color: rgba(44, 62, 80, 0.9);
+  color: white;
+  padding: 20px 40px;
+  border-radius: 10px;
+  border: 2px solid #ecf0f1;
+  width: 400px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+  text-align: center;
+}
+
+#helpMenu.hidden {
+  display: none;
+}
+
+#helpMenu h2 {
+  margin-top: 0;
+  border-bottom: 1px solid #7f8c8d;
+  padding-bottom: 10px;
+}
+
+#helpMenu .setting p {
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+#helpMenu .options {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+#helpMenu .setting-desc {
+    font-size: 14px;
+    color: #bdc3c7;
+    margin-top: -10px;
+    min-height: 2.5em; /* Reserve space for two lines */
+    font-style: italic;
+}
+
+#helpMenu button {
+  padding: 10px 15px;
+  background-color: #7f8c8d;
+  border: 1px solid #95a5a6;
+  color: white;
+  cursor: pointer;
+  border-radius: 5px;
+  font-family: monospace;
+  font-size: 16px;
+}
+
+#helpMenu button:hover {
+  background-color: #95a5a6;
+}
+
+#helpMenu button.active {
+  background-color: #2980b9;
+  border-color: #3498db;
+  font-weight: bold;
+}
+
+#helpMenu .controls-list {
+    text-align: left;
+    margin: 20px auto;
+    padding: 10px;
+    border-top: 1px solid #7f8c8d;
+}
+
+#helpMenu .close-info {
+    margin-top: 20px;
+    color: #bdc3c7;
+    font-style: italic;
 }

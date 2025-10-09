@@ -183,9 +183,10 @@ let attribLocations, uniformLocations;
 let buffers = {};
 let textures = {};
 let trackData, geometry;
-let carPos, carVelocity, cameraTarget;
+let carPos, carVelocity, cameraTarget, cameraSway = 0;
 let score = 0;
-let gameState = 'playing';
+let gameState = 'playing'; // Can be 'playing' or 'paused'
+let controlStyle = 'inverted'; // 'inverted' = Dynamic Camera, 'normal' = Static Camera
 let lastFrameTime = 0;
 const keysDown = {};
 const GRAVITY = 25.0, FORWARD_SPEED = 25.0, STRAFE_SPEED = 15.0, JUMP_STRENGTH = 10.0;
@@ -194,17 +195,6 @@ function respawnPlayer() {
     console.log("Player fell, respawning...");
     vec3.set(carPos, 0, 2, 5);
     vec3.set(carVelocity, 0, 0, 0);
-}
-
-function restartGame() {
-    console.log("Restarting game with new track...");
-    vec3.set(carPos, 0, 2, 5);
-    vec3.set(carVelocity, 0, 0, 0);
-    score = 0;
-    trackData = createTrack(100, Date.now());
-    geometry = buildTrackGeometry(trackData);
-    initBuffers();
-    lastFrameTime = performance.now();
 }
 
 function init() {
@@ -241,8 +231,7 @@ function init() {
   gl.enable(gl.DEPTH_TEST);
   gl.depthFunc(gl.LEQUAL);
 
-  window.addEventListener("keydown", e => { keysDown[e.key.toLowerCase()] = true; });
-  window.addEventListener("keyup",   e => { keysDown[e.key.toLowerCase()] = false; });
+  setupEventListeners();
   
   lastFrameTime = performance.now();
   requestAnimationFrame(render);
@@ -263,8 +252,59 @@ function initBuffer(dataArray) {
   return { buffer: buffer, vertexCount: dataArray.length / 5 };
 }
 
+// ============================ Event Listeners & Game State ============================
+function toggleHelpMenu() {
+    const menu = document.getElementById('helpMenu');
+    if (gameState === 'playing') {
+        gameState = 'paused';
+        menu.classList.remove('hidden');
+    } else if (gameState === 'paused') {
+        gameState = 'playing';
+        menu.classList.add('hidden');
+        // Reset lastFrameTime to prevent a large deltaTime jump after unpausing
+        lastFrameTime = performance.now();
+    }
+}
+
+function setupEventListeners() {
+    window.addEventListener("keydown", e => { 
+        const key = e.key.toLowerCase();
+        if (key === 'h') {
+            toggleHelpMenu();
+        } else {
+            keysDown[key] = true; 
+        }
+    });
+    window.addEventListener("keyup",   e => { keysDown[e.key.toLowerCase()] = false; });
+
+    const btnInverted = document.getElementById('controlsInverted');
+    const btnNormal = document.getElementById('controlsNormal');
+    const cameraDesc = document.getElementById('camera-desc');
+
+    btnInverted.addEventListener('click', () => {
+        controlStyle = 'inverted'; // Dynamic Camera
+        btnInverted.classList.add('active');
+        btnNormal.classList.remove('active');
+        cameraDesc.textContent = "Camera swings out during turns.";
+    });
+
+    btnNormal.addEventListener('click', () => {
+        controlStyle = 'normal'; // Static Camera
+        btnNormal.classList.add('active');
+        btnInverted.classList.remove('active');
+        cameraDesc.textContent = "Camera remains fixed behind the car.";
+    });
+}
+
+
 // ============================ Render Loop ============================
 function render(now) {
+  requestAnimationFrame(render);
+
+  if (gameState === 'paused') {
+      return; // Skip game logic and rendering when paused
+  }
+
   const deltaTime = Math.min(0.1, (now - lastFrameTime) / 1000.0);
   lastFrameTime = now;
   
@@ -273,7 +313,6 @@ function render(now) {
 
   drawScene();
   updateHUD();
-  requestAnimationFrame(render);
 }
 
 function updateCar(deltaTime) {
@@ -289,10 +328,21 @@ function updateCar(deltaTime) {
         }
     }
     
+    // --- Inverted Steering Controls ---
     let strafe = 0;
-    // CHANGE: Swapped the values for strafe to fix the inverted controls.
-    if (keysDown['a'] || keysDown['arrowleft']) strafe = 1; // Positive X is left on screen
-    else if (keysDown['d'] || keysDown['arrowright']) strafe = -1; // Negative X is right on screen
+    if (keysDown['a'] || keysDown['arrowleft']) strafe = 1;      // Steer right
+    else if (keysDown['d'] || keysDown['arrowright']) strafe = -1; // Steer left
+    
+    // --- Update Camera Sway based on steering and style ---
+    let targetSway = 0;
+    if (controlStyle === 'inverted') { // 'inverted' is now the Dynamic camera
+        // Camera swings in opposite direction of steer.
+        // Steer left (strafe -1) -> camera moves right (sway +4)
+        targetSway = -strafe * 4.0;
+    }
+    // Smoothly interpolate the camera sway for a fluid motion
+    cameraSway = lerp(cameraSway, targetSway, 5.0 * deltaTime);
+
 
     if (keysDown[' '] && onGround) {
         carVelocity[1] = JUMP_STRENGTH;
@@ -327,7 +377,8 @@ function drawScene() {
     gl.uniformMatrix4fv(uniformLocations.uProjection, false, projectionMatrix);
 
     const viewMatrix = mat4.create();
-    const cameraOffset = vec3.fromValues(0, 5, -10);
+    // --- Use cameraSway to create a dynamic camera offset ---
+    const cameraOffset = vec3.fromValues(cameraSway, 5, -10); 
     const cameraPos = vec3.create();
     vec3.add(cameraPos, carPos, cameraOffset);
     vec3.lerp(cameraTarget, cameraTarget, carPos, 0.1);
@@ -378,6 +429,9 @@ function updateHUD() {
     ctx.font = "bold 32px monospace";
     ctx.textAlign = "left";
     ctx.fillText(`SCORE: ${score}`, 20, 40);
+
+    ctx.font = "bold 16px monospace";
+    ctx.fillText("Press H for Help/Settings", 20, overlay.height - 80);
 
     ctx.font = "16px monospace";
     ctx.fillText("A/D or Arrows: Steer", 20, overlay.height - 60);

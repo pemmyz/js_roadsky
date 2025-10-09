@@ -13,6 +13,28 @@
   <canvas id="glCanvas"></canvas>
   <canvas id="hudCanvas"></canvas>
 
+  <!-- Help Menu Overlay -->
+  <div id="helpMenu" class="hidden">
+    <h2>Help / Settings</h2>
+    <div class="setting">
+      <p>Camera Style:</p>
+      <div class="options">
+        <button id="controlsInverted" class="active">Dynamic (Default)</button>
+        <button id="controlsNormal">Static</button>
+      </div>
+      <p id="camera-desc" class="setting-desc">
+         Camera swings out during turns.
+      </p>
+    </div>
+    <div class="controls-list">
+        <h3>Controls</h3>
+        <p><b>W / Up Arrow:</b> Accelerate</p>
+        <p><b>A/D / Arrows:</b> Steer Left/Right</p>
+        <p><b>Spacebar:</b> Jump</p>
+    </div>
+    <p class="close-info">Press 'H' to close this menu and resume</p>
+  </div>
+
   <!-- Your script is loaded last, ensuring the library above is ready first. -->
   <script src="script.js"></script>
 </body>
