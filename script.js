@@ -62,11 +62,10 @@ function createSolidColorTexture(gl, r, g, b) {
   return texture;
 }
 
-// CHANGE: New function to programmatically create a checkerboard texture
 function createCheckerboardTexture(gl) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    const textureSize = 64; // Power of 2 for good mipmapping
+    const textureSize = 64;
     const checkSize = textureSize / 2;
     canvas.width = textureSize;
     canvas.height = textureSize;
@@ -87,7 +86,6 @@ function createCheckerboardTexture(gl) {
     gl.generateMipmap(gl.TEXTURE_2D);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-    // Use NEAREST for a sharp, pixelated checkerboard look
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     return texture;
@@ -109,40 +107,43 @@ function createTrack(length, seed) {
     }
 
     const platforms = [];
-    let currentZ = 0;
     let currentX = 0;
     let currentY = 0;
     const platformHeight = 0.5;
-
-    platforms.push({ x: 0, y: 0, z: 0, width: 10, depth: 100, height: platformHeight });
-    currentZ = 100;
+    
+    const startDepth = 100;
+    platforms.push({ x: 0, y: 0, z: startDepth / 2, width: 10, depth: startDepth, height: platformHeight });
+    
+    let lastPlatformBackEdge = startDepth;
 
     for (let i = 0; i < length; i++) {
-        // CHANGE: Tighter gap constraint. Max gap is 1.8 (3 * 0.6 car height).
         const minGap = 1.0;
         const maxGap = 1.8; 
         const gap = rng() * (maxGap - minGap) + minGap;
 
-        currentZ += gap;
+        // CHANGE: This line was missing and caused the ReferenceError. It has been restored.
         const width = rng() * 8 + 4;
         const depth = rng() * 15 + 10;
+        
+        const newPlatformCenterZ = lastPlatformBackEdge + gap + (depth / 2);
+
         const xShift = (rng() - 0.5) * 10;
         currentX = Math.max(-15, Math.min(15, currentX + xShift));
         if (rng() < 0.2) {
             const yShift = (rng() - 0.5) * 3;
             currentY += yShift;
         }
-        platforms.push({ x: currentX, y: currentY, z: currentZ, width, depth, height: platformHeight });
-        currentZ += depth;
+        
+        platforms.push({ x: currentX, y: currentY, z: newPlatformCenterZ, width: width, depth: depth, height: platformHeight });
+        
+        lastPlatformBackEdge = newPlatformCenterZ + (depth / 2);
     }
     return platforms;
 }
 
 // ============================ Geometry Generation ============================
-// CHANGE: Function now accepts checkSize to scale texture coordinates
 function createCubeGeometry(width, height, depth, checkSize = 1.0) {
     const w = width / 2, h = height / 2, d = depth / 2;
-    // Calculate how many times the texture should repeat on each axis
     const uMaxW = width / checkSize;
     const uMaxD = depth / checkSize;
     const vMaxH = height / checkSize;
@@ -161,9 +162,9 @@ function createCubeGeometry(width, height, depth, checkSize = 1.0) {
 
 function buildTrackGeometry(platforms) {
     const allVerts = [];
-    const checkSize = 0.2; // 1/3 of car height (0.6)
+    // CHANGE: checkSize is now 0.6 to match the player cube's height.
+    const checkSize = 0.6; 
     for (const p of platforms) {
-        // CHANGE: Pass platform dimensions and checkSize to the geometry creator
         const cubeVerts = createCubeGeometry(p.width, p.height, p.depth, checkSize);
         for (let i = 0; i < cubeVerts.length; i += 5) {
             allVerts.push(
@@ -231,7 +232,6 @@ function init() {
     uTexture: gl.getUniformLocation(shaderProgram, "uTexture")
   };
     
-  // CHANGE: Use new functions to create a checkered texture and a red texture
   textures.track = createCheckerboardTexture(gl);
   textures.car = createSolidColorTexture(gl, 255, 0, 0);
 
@@ -254,7 +254,6 @@ function initBuffers() {
   if (buffers.track) gl.deleteBuffer(buffers.track.buffer);
   if (buffers.car) gl.deleteBuffer(buffers.car.buffer);
   buffers.track = initBuffer(geometry);
-  // CHANGE: The car geometry does not need a checkSize, as it's a solid color
   buffers.car = initBuffer(createCubeGeometry(1.0, 0.6, 2.0)); 
 }
 
