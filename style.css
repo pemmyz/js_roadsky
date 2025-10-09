@@ -26,7 +26,8 @@ html, body {
     height: 100%;
 }
 
-#glcanvas {
+/* Changed ID to match HTML and maze game example */
+#glCanvas {
     display: block;
     width: 100%;
     height: 100%;
@@ -50,6 +51,7 @@ html, body {
     flex-direction: column;
     justify-content: space-between;
     text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+    z-index: 1; /* Ensure HUD is on top of the canvas */
 }
 
 .hud-top-left, .hud-top-right, .hud-bottom-left, .hud-bottom-right {

@@ -5,10 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>WebGL SkyRoads</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Use the new gl-matrix-min.js, assuming it's the latest version -->
+    <script src="gl-matrix-min_old.js"></script>
 </head>
 <body>
     <div id="game-container">
-        <canvas id="glcanvas"></canvas>
+        <!-- Changed ID to glCanvas for consistency with the maze game example -->
+        <canvas id="glCanvas"></canvas>
         
         <div id="hud">
             <div class="hud-top-left">
@@ -89,10 +92,7 @@
             <label><input type="checkbox" id="debug-wireframe"> Wireframe</label>
         </div>
     </div>
-
-    <!-- The required gl-matrix legacy library -->
-    <script src="gl-matrix-min_old.js"></script>
-    <!-- The main game script -->
+    
     <script src="script.js" defer></script>
 </body>
 </html>
