@@ -1,713 +1,376 @@
-'use strict';
-
 // ============================ Utility Functions ============================
-function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
+function toRadian(deg) {
+  return deg * Math.PI / 180;
 }
 function lerp(a, b, t) {
-    return a + (b - a) * t;
+  return a + (b - a) * t;
 }
-
-// ============================ Global Variables & Constants ============================
-let gl, mainProgram, skyProgram;
-let mainProgramInfo, skyProgramInfo;
-let trackBuffers, playerBuffers, cubeBuffers, skyBuffers;
-const projectionMatrix = mat4.create();
-const viewMatrix = mat4.create();
-
-const game = {
-    state: 'menu',
-    level: null,
-    currentLevelIndex: 0,
-    lives: 3,
-    time: 0,
-    lastCheckpointZ: 0,
-    lastTime: 0,
-    accumulator: 0,
-    fps: 60,
-    debug: {
-        showColliders: false,
-        wireframe: false,
-        panel: false,
-    },
-    settings: {
-        dpr: Math.min(window.devicePixelRatio, 1.5),
-    },
-};
-
-const player = {
-    pos: vec3.create(),
-    vel: vec3.create(),
-    size: vec3.fromValues(0.8, 1.0, 1.5),
-    onGround: false,
-    coyoteTimeLeft: 0,
-    jumpReleased: true,
-    fuel: 100,
-    oxygen: 100,
-    speed: 0,
-    speedTarget: 80.0,
-    baseSpeed: 80.0,
-    boostTimer: 0,
-};
-
-const camera = {
-    pos: vec3.create(),
-    target: vec3.create(),
-    distance: 12.0,
-    height: 5.0,
-    lookAhead: 5.0,
-    smoothSpeed: 4.0,
-};
-
-const input = {
-    keys: new Set(),
-    gamepad: null,
-};
-
-const PHYSICS_TICK_RATE = 1 / 60;
-const MAX_UPDATES_PER_FRAME = 5;
-const GRAVITY = -25.0;
-const JUMP_IMPULSE = 12.0;
-const COYOTE_TIME = 0.08;
-
-const temp = {
-    mat4: mat4.create(),
-    mat4_2: mat4.create(),
-    vec3: vec3.create(),
-    vec3_2: vec3.create(),
-    quat: quat.create(),
-};
-const UP_VECTOR = vec3.fromValues(0, 1, 0);
 
 // ============================ Shader Sources ============================
 const vsSource = `
-    attribute vec4 aVertexPosition;
-    attribute vec3 aVertexNormal;
-    attribute float aMaterialId;
-
-    uniform mat4 uProjectionMatrix;
-    uniform mat4 uViewMatrix;
-    uniform mat4 uModelMatrix;
-    uniform mat3 uNormalMatrix;
-    
-    varying highp vec3 vWorldPosition;
-    varying highp vec3 vNormal;
-    varying highp float vMaterialId;
-
-    void main(void) {
-        vec4 worldPos = uModelMatrix * aVertexPosition;
-        gl_Position = uProjectionMatrix * uViewMatrix * worldPos;
-        vWorldPosition = worldPos.xyz;
-        
-        vNormal = normalize(uNormalMatrix * aVertexNormal);
-        vMaterialId = aMaterialId;
-    }
+  attribute vec3 aPosition;
+  attribute vec2 aTexCoord;
+  uniform mat4 uProjection;
+  uniform mat4 uView;
+  uniform mat4 uModel;
+  varying vec2 vTexCoord;
+  void main(void) {
+      gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
+      vTexCoord = aTexCoord;
+  }
 `;
-
 const fsSource = `
-    precision highp float;
-
-    varying highp vec3 vWorldPosition;
-    varying highp vec3 vNormal;
-    varying highp float vMaterialId;
-    
-    uniform vec3 uCameraPosition;
-
-    const vec3 FOG_COLOR = vec3(0.01, 0.015, 0.025);
-    const float FOG_DENSITY = 0.003;
-
-    void main(void) {
-        vec3 materialColor;
-        if (vMaterialId < 0.5) { materialColor = vec3(0.6, 0.65, 0.7); }       // Normal
-        else if (vMaterialId < 1.5) { materialColor = vec3(0.9, 0.2, 0.2); }   // Hazard
-        else if (vMaterialId < 2.5) { materialColor = vec3(0.2, 0.9, 0.2); }   // Boost
-        else if (vMaterialId < 3.5) { materialColor = vec3(0.7, 0.9, 1.0); }   // Ice
-        else if (vMaterialId < 4.5) { materialColor = vec3(0.9, 0.7, 0.1); }   // Fuel
-        else if (vMaterialId < 5.5) { materialColor = vec3(0.1, 0.7, 0.9); }   // Oxygen
-        else if (vMaterialId < 6.5) { materialColor = vec3(0.8, 0.2, 0.8); }   // Finish
-        else { materialColor = vec3(0.9, 0.9, 0.9); }                         // Player
-        
-        vec3 finalColor = materialColor; // No lighting calculation for flat shading
-
-        // Player ship fresnel effect
-        if (vMaterialId > 6.5) {
-             vec3 viewDir = normalize(uCameraPosition - vWorldPosition);
-             float fresnel = pow(1.0 - max(dot(viewDir, normalize(vNormal)), 0.0), 3.0);
-             finalColor += vec3(0.5, 0.8, 1.0) * fresnel * 0.5;
-        }
-
-        // Fog
-        float dist = length(uCameraPosition - vWorldPosition);
-        float fogFactor = exp(-dist * dist * FOG_DENSITY * FOG_DENSITY);
-        fogFactor = clamp(fogFactor, 0.0, 1.0);
-
-        // Vignette (assuming 1280x720 aspect ratio, adjust if needed)
-        vec2 screenPos = gl_FragCoord.xy / vec2(1280.0, 720.0);
-        float vignette = 1.0 - smoothstep(0.4, 1.0, length(screenPos - 0.5));
-        
-        gl_FragColor = vec4(mix(FOG_COLOR, finalColor, fogFactor) - vignette * 0.2, 1.0);
-    }
+  precision mediump float;
+  varying vec2 vTexCoord;
+  uniform sampler2D uTexture;
+  void main(void) {
+      gl_FragColor = texture2D(uTexture, vTexCoord);
+  }
 `;
 
-const skyVsSource = `
-    attribute vec4 aVertexPosition;
-    varying highp vec3 vWorldPosition;
-    uniform mat4 uProjectionMatrix;
-    uniform mat4 uViewMatrix;
-    
-    void main() {
-        mat4 viewRotationOnly = mat4(mat3(uViewMatrix)); 
-        gl_Position = uProjectionMatrix * viewRotationOnly * aVertexPosition;
-        vWorldPosition = aVertexPosition.xyz;
-    }
-`;
-const skyFsSource = `
-    precision highp float;
-    varying highp vec3 vWorldPosition;
-
-    const vec3 TOP_COLOR = vec3(0.2, 0.4, 0.8);
-    const vec3 HORIZON_COLOR = vec3(0.8, 0.6, 0.5);
-    const vec3 BOTTOM_COLOR = vec3(0.01, 0.015, 0.025);
-
-    void main() {
-        float h = normalize(vWorldPosition).y;
-        vec3 finalColor = (h > 0.0) ? mix(HORIZON_COLOR, TOP_COLOR, h) : mix(HORIZON_COLOR, BOTTOM_COLOR, -h);
-        gl_FragColor = vec4(finalColor, 1.0);
-    }
-`;
-
-// ============================ WebGL Initialization & Utilities ============================
-function initShaderProgram(gl, vsSource, fsSource) {
-    const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
-    const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
-    if (!vertexShader || !fragmentShader) {
-        return null;
-    }
-    const shaderProgram = gl.createProgram();
-    gl.attachShader(shaderProgram, vertexShader);
-    gl.attachShader(shaderProgram, fragmentShader);
-    gl.linkProgram(shaderProgram);
-    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-        alert('Unable to initialize the shader program: ' + gl.getProgramInfoLog(shaderProgram));
-        return null;
-    }
-    return shaderProgram;
-}
-
+// ============================ Shader & Texture Utilities ============================
 function loadShader(gl, type, source) {
-    const shader = gl.createShader(type);
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        console.error('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader));
-        gl.deleteShader(shader);
-        return null;
-    }
-    return shader;
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    console.error("Error compiling shader: " + gl.getShaderInfoLog(shader));
+    gl.deleteShader(shader);
+    return null;
+  }
+  return shader;
+}
+function initShaderProgram(gl, vsSource, fsSource) {
+  const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
+  const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
+  const shaderProgram = gl.createProgram();
+  gl.attachShader(shaderProgram, vertexShader);
+  gl.attachShader(shaderProgram, fragmentShader);
+  gl.linkProgram(shaderProgram);
+  if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+    console.error("Error linking shader program: " + gl.getProgramInfoLog(shaderProgram));
+    return null;
+  }
+  return shaderProgram;
+}
+function loadTexture(gl, url) {
+  const texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  const pixel = new Uint8Array([128, 128, 128, 255]); // Grey pixel
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+  const image = new Image();
+  image.crossOrigin = "anonymous"; // Important for loading from other domains
+  image.onload = function() {
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  };
+  image.src = url;
+  return texture;
 }
 
-function createVbo(data) {
-    const posBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data.vertices), gl.STATIC_DRAW);
+// ============================ Track Generation ============================
+function createTrack(length, seed) {
+    let rng = Math.random;
+    if (seed !== undefined) {
+        let m_w = seed;
+        let m_z = 987654321;
+        rng = function() {
+            m_z = (36969 * (m_z & 65535) + (m_z >> 16)) & 0xffffffff;
+            m_w = (18000 * (m_w & 65535) + (m_w >> 16)) & 0xffffffff;
+            let result = ((m_z << 16) + m_w) & 0xffffffff;
+            result /= 4294967296;
+            return result + 0.5;
+        }
+    }
 
-    const normalBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data.normals), gl.STATIC_DRAW);
+    const platforms = [];
+    let currentZ = 0;
+    let currentX = 0;
+    let currentY = 0;
+    const platformHeight = 0.5;
+
+    // CHANGE: Starting platform is now 5x longer (depth: 100)
+    platforms.push({ x: 0, y: 0, z: 0, width: 10, depth: 100, height: platformHeight });
+    // CHANGE: Update starting Z for the next platform to account for the longer start
+    currentZ = 100;
+
+    for (let i = 0; i < length; i++) {
+        const gap = rng() * 5 + 3;
+        currentZ += gap;
+        const width = rng() * 8 + 4;
+        const depth = rng() * 15 + 10;
+        const xShift = (rng() - 0.5) * 10;
+        currentX = Math.max(-15, Math.min(15, currentX + xShift));
+        if (rng() < 0.2) {
+            const yShift = (rng() - 0.5) * 3;
+            currentY += yShift;
+        }
+        platforms.push({ x: currentX, y: currentY, z: currentZ, width, depth, height: platformHeight });
+        currentZ += depth;
+    }
+    return platforms;
+}
+
+// ============================ Geometry Generation ============================
+function createCubeGeometry(width, height, depth) {
+    const w = width / 2, h = height / 2, d = depth / 2;
+    return new Float32Array([
+        // x, y, z, u, v
+        -w,-h,d,0,0, w,-h,d,1,0, w,h,d,1,1, -w,-h,d,0,0, w,h,d,1,1, -w,h,d,0,1, // Front
+        -w,-h,-d,1,0, -w,h,-d,1,1, w,h,-d,0,1, -w,-h,-d,1,0, w,h,-d,0,1, w,-h,-d,0,0, // Back
+        -w,h,-d,0,1, -w,h,d,0,0, w,h,d,1,0, -w,h,-d,0,1, w,h,d,1,0, w,h,-d,1,1, // Top
+        -w,-h,-d,0,0, w,-h,-d,1,0, w,-h,d,1,1, -w,-h,-d,0,0, w,-h,d,1,1, -w,h,d,0,1, // Bottom
+        w,-h,-d,1,0, w,h,-d,1,1, w,h,d,0,1, w,-h,-d,1,0, w,h,d,0,1, w,-h,d,0,0, // Right
+        -w,-h,-d,0,0, -w,-h,d,1,0, -w,h,d,1,1, -w,-h,-d,0,0, -w,h,d,1,1, -w,h,-d,0,1, // Left
+    ]);
+}
+
+function buildTrackGeometry(platforms) {
+    const allVerts = [];
+    for (const p of platforms) {
+        const cubeVerts = createCubeGeometry(p.width, p.height, p.depth);
+        for (let i = 0; i < cubeVerts.length; i += 5) {
+            allVerts.push(
+                cubeVerts[i] + p.x,
+                cubeVerts[i+1] + p.y,
+                cubeVerts[i+2] + p.z,
+                cubeVerts[i+3],
+                cubeVerts[i+4]
+            );
+        }
+    }
+    return new Float32Array(allVerts);
+}
+
+// ============================ Global Variables ============================
+let gl, shaderProgram;
+let attribLocations, uniformLocations;
+let buffers = {};
+let textures = {};
+let trackData, geometry;
+let carPos, carVelocity, cameraTarget;
+let score = 0;
+let gameState = 'playing'; // Game state is now always 'playing'
+let lastFrameTime = 0;
+const keysDown = {};
+const GRAVITY = 25.0, FORWARD_SPEED = 25.0, STRAFE_SPEED = 15.0, JUMP_STRENGTH = 10.0;
+
+// CHANGE: Create a dedicated respawn function
+function respawnPlayer() {
+    console.log("Player fell, respawning...");
+    vec3.set(carPos, 0, 2, 5); // Reset position to the start
+    vec3.set(carVelocity, 0, 0, 0); // Reset velocity to zero
+}
+
+// This function now resets the entire track and score
+function restartGame() {
+    console.log("Restarting game with new track...");
+    vec3.set(carPos, 0, 2, 5);
+    vec3.set(carVelocity, 0, 0, 0);
+    score = 0;
+    trackData = createTrack(100, Date.now());
+    geometry = buildTrackGeometry(trackData);
+    initBuffers();
+    lastFrameTime = performance.now();
+}
+
+function init() {
+  carPos = vec3.fromValues(0, 2, 5);
+  carVelocity = vec3.fromValues(0, 0, 0);
+  cameraTarget = vec3.create();
+
+  const canvas = document.getElementById("glCanvas");
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  gl = canvas.getContext("webgl");
+  if (!gl) { alert("WebGL not supported."); return; }
+
+  shaderProgram = initShaderProgram(gl, vsSource, fsSource);
+  attribLocations = {
+    aPosition: gl.getAttribLocation(shaderProgram, "aPosition"),
+    aTexCoord: gl.getAttribLocation(shaderProgram, "aTexCoord")
+  };
+  uniformLocations = {
+    uProjection: gl.getUniformLocation(shaderProgram, "uProjection"),
+    uView: gl.getUniformLocation(shaderProgram, "uView"),
+    uModel: gl.getUniformLocation(shaderProgram, "uModel"),
+    uTexture: gl.getUniformLocation(shaderProgram, "uTexture")
+  };
     
-    const materialIdBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, materialIdBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data.materialIds), gl.STATIC_DRAW);
+  textures.track = loadTexture(gl, "https://raw.githubusercontent.com/emilyxxie/emilyxxie.github.io/master/images/ground.jpg");
+  textures.car = loadTexture(gl, "https://raw.githubusercontent.com/emilyxxie/emilyxxie.github.io/master/images/roof.jpg");
 
-    const indexBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(data.indices), gl.STATIC_DRAW);
+  trackData = createTrack(100, 12345); 
+  geometry = buildTrackGeometry(trackData);
+  initBuffers();
+  
+  gl.clearColor(0.20, 0.28, 0.34, 1.0);
+  gl.enable(gl.DEPTH_TEST);
+  gl.depthFunc(gl.LEQUAL);
 
-    return {
-        position: posBuffer,
-        normal: normalBuffer,
-        materialId: materialIdBuffer,
-        indices: indexBuffer,
-        vertexCount: data.indices.length
-    };
+  window.addEventListener("keydown", e => { keysDown[e.key.toLowerCase()] = true; });
+  window.addEventListener("keyup",   e => { keysDown[e.key.toLowerCase()] = false; });
+  
+  lastFrameTime = performance.now();
+  requestAnimationFrame(render);
 }
 
-function resizeCanvasToDisplaySize(canvas) {
-    const displayWidth = Math.floor(canvas.clientWidth * game.settings.dpr);
-    const displayHeight = Math.floor(canvas.clientHeight * game.settings.dpr);
-    if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
-        canvas.width = displayWidth;
-        canvas.height = displayHeight;
-        return true;
-    }
-    return false;
+function initBuffers() {
+  if (buffers.track) gl.deleteBuffer(buffers.track.buffer);
+  if (buffers.car) gl.deleteBuffer(buffers.car.buffer);
+  buffers.track = initBuffer(geometry);
+  buffers.car = initBuffer(createCubeGeometry(1.0, 0.6, 2.0)); 
 }
 
-// ============================ Level Data ============================
-const MATERIALS = {
-    NORMAL: { id: 0 }, HAZARD: { id: 1 }, BOOST:  { id: 2 }, ICE: { id: 3 },
-    FUEL:   { id: 4 }, OXY:    { id: 5 }, FINISH: { id: 6 }, PLAYER: { id: 7 },
-};
-const levels = [
-    {
-        id: 'level1', name: "Level 1 - The Basics",
-        playerStart: { pos: [0, 2, 10] }, finishZ: 1000,
-        oxygenStart: 100, fuelStart: 100,
-        oxygenDrainPerSec: 2, fuelDrainPerSec: 4,
-        segments: [
-            { type: "straight", length: 100, width: 10, material: "NORMAL" },
-            { type: "gap", length: 15 },
-            { type: "straight", length: 50, material: "BOOST" },
-            { type: "straight", length: 150, material: "NORMAL" },
-            { type: "ramp", length: 30, pitch: 0.2, material: "NORMAL" },
-            { type: "gap", length: 50 },
-            { type: "platform", length: 40, width: 20, material: "FUEL" },
-            { type: "gap", length: 20 },
-            { type: "straight", length: 100, width: 6, material: "ICE" },
-            { type: "curve", length: 100, yaw: 0.3, material: "NORMAL" },
-            { type: "straight", length: 50, material: "HAZARD" },
-            { type: "gap", length: 10 },
-            { type: "platform", length: 20, width: 20, material: "OXY" },
-            { type: "straight", length: 250, width: 10, material: "NORMAL" },
-            { type: "straight", length: 20, width: 10, material: "FINISH" },
-        ]
-    },
-    {
-        id: 'level2', name: "Level 2 - The Gauntlet",
-        playerStart: { pos: [0, 2, 10] }, finishZ: 1500,
-        oxygenStart: 100, fuelStart: 100,
-        oxygenDrainPerSec: 5, fuelDrainPerSec: 7,
-        segments: [
-            { type: "straight", length: 50, width: 8, material: "NORMAL" },
-            { type: "gap", length: 20 },
-            { type: "straight", length: 30, width: 4, material: "NORMAL" },
-            { type: "gap", length: 20 },
-            { type: "straight", length: 30, width: 4, material: "NORMAL" },
-            { type: "curve", length: 150, yaw: -0.5, width: 6, material: "ICE" },
-            { type: "ramp", length: 40, pitch: 0.3, material: "BOOST" },
-            { type: "gap", length: 80 },
-            { type: "platform", length: 20, width: 20, material: "FUEL" },
-            { type: "straight", length: 200, width: 10, material: "HAZARD" },
-            { type: "gap", length: 10 }, { type: "straight", length: 300, material: "NORMAL" },
-            { type: "curve", length: 200, yaw: 0.8, material: "NORMAL" },
-            { type: "gap", length: 10 }, { type: "platform", length: 20, width: 20, material: "OXY" },
-            { type: "straight", length: 250, material: "NORMAL" },
-            { type: "straight", length: 20, material: "FINISH" },
-        ]
-    }
-];
-
-// ============================ Build Track Geometry ============================
-function generateEndlessLevel() {
-    const segments = [{ type: "straight", length: 50, width: 10, material: "NORMAL" }];
-    let segmentCount = 100;
-    const rand = (min, max) => Math.random() * (max - min) + min;
-
-    for (let i = 0; i < segmentCount; i++) {
-        const r = Math.random();
-        if (r < 0.4) {
-            segments.push({ type: 'straight', length: rand(50, 200), width: rand(6, 12), material: 'NORMAL' });
-        } else if (r < 0.6) {
-            segments.push({ type: 'curve', length: rand(80, 150), yaw: rand(-0.4, 0.4), width: rand(8, 12), material: 'NORMAL' });
-        } else if (r < 0.75) {
-            segments.push({ type: 'ramp', length: rand(20, 40), pitch: rand(0.1, 0.3), material: 'BOOST' });
-            segments.push({ type: 'gap', length: rand(30, 80) });
-        } else {
-            const matR = Math.random();
-            let material = (matR < 0.25) ? 'ICE' : (matR < 0.5) ? 'HAZARD' : (matR < 0.75) ? 'FUEL' : 'OXY';
-            segments.push({ type: 'platform', length: rand(20, 50), width: rand(15, 25), material });
-            segments.push({ type: 'gap', length: rand(10, 25) });
-        }
-    }
-    segments.push({ type: 'straight', length: 20, material: 'FINISH' });
-    let totalZ = segments.reduce((acc, s) => acc + s.length, 0);
-    return {
-        id: 'endless', name: "Endless Mode", playerStart: { pos: [0, 2, 10] },
-        finishZ: totalZ - 50, oxygenStart: 100, fuelStart: 100,
-        oxygenDrainPerSec: 3, fuelDrainPerSec: 5, segments: segments,
-    };
+function initBuffer(dataArray) {
+  if (!dataArray || dataArray.length === 0) return { buffer: null, vertexCount: 0 };
+  const buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, dataArray, gl.STATIC_DRAW);
+  return { buffer: buffer, vertexCount: dataArray.length / 5 };
 }
-function buildTrack(level) {
-    const vertices = [], indices = [], normals = [], materialIds = [];
-    const segments = [];
-    let currentIndex = 0;
-    const currentPos = vec3.fromValues(0, 0, 0);
-    const currentRot = quat.create();
 
-    for (const segDef of level.segments) {
-        if (segDef.type === 'gap') {
-            currentPos[2] += segDef.length;
-            continue;
-        }
-        const length = segDef.length, width = segDef.width || 10, height = segDef.height || 1.0;
-        const material = MATERIALS[segDef.material] || MATERIALS.NORMAL;
-        const modelMatrix = mat4.create();
-        mat4.fromRotationTranslation(modelMatrix, currentRot, currentPos);
-        
-        // FIX: Use mat4.rotateX with the angle and axis, not a quaternion.
-        if (segDef.pitch) {
-            mat4.rotateX(modelMatrix, modelMatrix, segDef.pitch);
-        }
-        
-        const worldAABB = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, minZ: Infinity, maxZ: -Infinity };
-        [[ -width/2, -height, 0], [width/2, 0, length]].forEach(cornerBase => {
-            for(let i=0; i<8; i++){
-                const c = [cornerBase[0] * (i&1?1:-1), cornerBase[1] * (i&2?1:-1), cornerBase[2] * (i&4?1:-1)];
-                const wc = vec3.transformMat4(temp.vec3, c, modelMatrix);
-                worldAABB.minX = Math.min(worldAABB.minX, wc[0]); worldAABB.maxX = Math.max(worldAABB.maxX, wc[0]);
-                worldAABB.minY = Math.min(worldAABB.minY, wc[1]); worldAABB.maxY = Math.max(worldAABB.maxY, wc[1]);
-                worldAABB.minZ = Math.min(worldAABB.minZ, wc[2]); worldAABB.maxZ = Math.max(worldAABB.maxZ, wc[2]);
+// ============================ Render Loop ============================
+function render(now) {
+  const deltaTime = Math.min(0.1, (now - lastFrameTime) / 1000.0);
+  lastFrameTime = now;
+  
+  // CHANGE: Game is always updating the car now, no 'gameover' state check
+  updateCar(deltaTime);
+  score = Math.max(score, Math.floor(carPos[2]));
+
+  drawScene();
+  updateHUD();
+  requestAnimationFrame(render);
+}
+
+function updateCar(deltaTime) {
+    let onGround = false;
+    for (const p of trackData) {
+        const halfWidth = p.width / 2, halfDepth = p.depth / 2, platformTop = p.y + p.height / 2;
+        if (carPos[0] >= p.x - halfWidth && carPos[0] <= p.x + halfWidth && carPos[2] >= p.z - halfDepth && carPos[2] <= p.z + halfDepth) {
+            if (carPos[1] <= platformTop + 0.3 && carPos[1] >= platformTop - 0.5) {
+                onGround = true;
+                carPos[1] = platformTop + 0.3; 
+                if (carVelocity[1] < 0) carVelocity[1] = 0;
             }
-        });
-        
-        segments.push({ ...segDef, modelMatrix, material, aabb: worldAABB });
-
-        const tileCount = Math.max(1, Math.round(length / width));
-        for (let i = 0; i < tileCount; i++) {
-            const z = (i / tileCount) * length, tileLength = length / tileCount;
-            const tileVerts = [ -width/2,0,z, width/2,0,z, width/2,0,z+tileLength, -width/2,0,z+tileLength ];
-            for(let j=0; j<tileVerts.length; j+=3){
-                const lp = vec3.fromValues(tileVerts[j], tileVerts[j+1], tileVerts[j+2]);
-                vec3.transformMat4(lp, lp, modelMatrix);
-                vertices.push(lp[0], lp[1], lp[2]);
-                materialIds.push(material.id);
-                const ln = vec3.fromValues(0,1,0);
-                const normalMatrix3 = mat3.create();
-                mat3.fromMat4(normalMatrix3, modelMatrix);
-                mat3.invert(normalMatrix3, normalMatrix3);
-                mat3.transpose(normalMatrix3, normalMatrix3);
-                vec3.transformMat3(ln, ln, normalMatrix3); 
-                vec3.normalize(ln, ln);
-                normals.push(ln[0], ln[1], ln[2]);
-            }
-            [0,1,2,0,2,3].forEach(idx => indices.push(currentIndex + idx));
-            currentIndex += 4;
         }
-        const forward = vec3.fromValues(0, 0, length);
-        if (segDef.pitch) vec3.transformQuat(forward, forward, quat.setAxisAngle(temp.quat, [1, 0, 0], segDef.pitch));
-        vec3.transformQuat(forward, forward, currentRot);
-        vec3.add(currentPos, currentPos, forward);
-        if (segDef.yaw) quat.multiply(currentRot, currentRot, quat.setAxisAngle(temp.quat, [0, 1, 0], segDef.yaw));
     }
-    return { vertices, indices, normals, materialIds, segments };
-}
-function createPlayerBuffers() {
-    const s=0.5, l=1.0;
-    const vertices = [ 0,s,l, -s*1.2,-s,-l, s*1.2,-s,-l, 0,s,-l, -s*0.8,-s,-l, s*0.8,-s,-l ];
-    const indices = [ 0,1,2, 3,4,5, 0,3,1, 3,4,1, 0,2,5, 3,0,5, 1,4,5, 1,5,2 ];
-    const normals = [], materialIds = [];
-    for (let i=0; i<vertices.length/3; i++) { normals.push(0,1,0); materialIds.push(MATERIALS.PLAYER.id); }
-    return createVbo({ vertices, indices, normals, materialIds });
-}
-function createCubeBuffers(size = 1.0) {
-    const s = size/2;
-    const v = [ -s,-s,s, s,-s,s, s,s,s, -s,s,s, -s,-s,-s, -s,s,-s, s,s,-s, s,-s,-s, ];
-    const i = [ 0,1,2,0,2,3, 4,5,6,4,6,7, 3,2,6,3,6,5, 4,7,1,4,1,0, 1,7,6,1,6,2, 4,0,3,4,3,5, ];
-    const wi = [ 0,1,1,2,2,3,3,0, 4,5,5,6,6,7,7,4, 0,4,1,7,2,6,3,5 ];
-    const n = [], m = []; for(let i=0;i<v.length/3;i++){n.push(0,1,0);m.push(0);}
-    const buffers = createVbo({ vertices: v, indices: i, normals: n, materialIds: m });
     
-    const wireframeIndexBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wireframeIndexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(wi), gl.STATIC_DRAW);
-    buffers.wireframeIndices = wireframeIndexBuffer;
-    buffers.wireframeVertexCount = wi.length;
+    // --- Sideways Movement ---
+    let strafe = 0;
+    if (keysDown['a'] || keysDown['arrowleft']) strafe = -1;
+    else if (keysDown['d'] || keysDown['arrowright']) strafe = 1;
 
-    return buffers;
-}
+    // CHANGE: Jump is now only on Spacebar
+    if (keysDown[' '] && onGround) {
+        carVelocity[1] = JUMP_STRENGTH;
+    }
 
-// ============================ Physics & Collision ============================
-function updatePhysics(dt) {
-    if (game.state !== 'playing') return;
-    pollGamepad();
-    let accel=0, strafe=0;
-    if (input.keys.has('KeyW')||input.keys.has('ArrowUp')) accel=1.0;
-    if (input.keys.has('KeyS')||input.keys.has('ArrowDown')) accel=-1.0;
-    if (input.keys.has('KeyA')||input.keys.has('ArrowLeft')) strafe=-1.0;
-    if (input.keys.has('KeyD')||input.keys.has('ArrowRight')) strafe=1.0;
-    if (input.gamepad) {
-        if(input.gamepad.buttons[7]?.pressed) accel=input.gamepad.buttons[7].value;
-        if(input.gamepad.buttons[6]?.pressed) accel=-input.gamepad.buttons[6].value;
-        const stickX = input.gamepad.axes[0];
-        if (Math.abs(stickX) > 0.15) strafe=stickX;
+    // CHANGE: Forward acceleration is now conditional on W / ArrowUp
+    let forwardSpeed = 0;
+    if (keysDown['w'] || keysDown['arrowup']) {
+        forwardSpeed = FORWARD_SPEED;
     }
-    const targetZVel = player.speedTarget * (accel > 0 ? 1 : 0.5);
-    player.vel[2] = lerp(player.vel[2], (accel !== 0) ? targetZVel*Math.sign(accel) : player.vel[2]*0.98, (accel>0?100:200)*dt);
-    player.vel[2] = clamp(player.vel[2], -player.baseSpeed*0.5, player.speedTarget*1.5);
-    let strafeControl = player.onGround ? 25.0 : 10.0;
-    if(input.keys.has('ShiftLeft')) strafeControl *= 0.5;
-    player.vel[0] += strafe * strafeControl * dt;
-    const jumpPressed = input.keys.has('Space') || input.gamepad?.buttons[0]?.pressed;
-    if (jumpPressed && player.jumpReleased && (player.onGround || player.coyoteTimeLeft > 0)) {
-        player.vel[1] = JUMP_IMPULSE; player.onGround = false; player.coyoteTimeLeft=0; player.jumpReleased=false;
-    }
-    if (!jumpPressed) player.jumpReleased = true;
-    if (!player.onGround) { player.vel[1] += GRAVITY*dt; player.coyoteTimeLeft -= dt; } else { player.coyoteTimeLeft=COYOTE_TIME; }
-    const friction = player.onGround?1.0:0.1;
-    player.vel[0] *= (1-2.0*friction*dt); if(accel===0) player.vel[2] *= (1-0.5*friction*dt);
-    vec3.scaleAndAdd(player.pos, player.pos, player.vel, dt);
-    player.onGround=false; const playerBox=getPlayerAABB(); let currentSegment=null;
-    const playerSegIdx=findSegmentIndexAt(player.pos[2]);
-    for(let i=Math.max(0, playerSegIdx-5); i<Math.min(game.track.segments.length, playerSegIdx+5); i++){
-        const seg=game.track.segments[i];
-        if (playerBox.maxX>seg.aabb.minX && playerBox.minX<seg.aabb.maxX && playerBox.maxZ>seg.aabb.minZ && playerBox.minZ<seg.aabb.maxZ && playerBox.minY<seg.aabb.maxY && playerBox.maxY>seg.aabb.minY){
-            const overlapY = seg.aabb.maxY-playerBox.minY;
-            if (overlapY>0 && player.vel[1]<=0) { player.pos[1]+=overlapY; player.vel[1]=0; player.onGround=true; currentSegment=seg; break; }
-        }
-    }
-    if(player.onGround&&currentSegment) handleMaterial(currentSegment.material);
-    if(accel>0) player.fuel -= game.level.fuelDrainPerSec*dt*(player.vel[2]/player.baseSpeed);
-    player.oxygen -= game.level.oxygenDrainPerSec * dt;
-    if(player.boostTimer>0) { player.boostTimer-=dt; if(player.boostTimer<=0) player.speedTarget=player.baseSpeed; }
-    player.speed=vec3.length(player.vel);
-    if(player.pos[1]<-50||player.fuel<=0||player.oxygen<=0) handlePlayerDeath();
-    if(player.pos[2]>game.level.finishZ) finishLevel();
-    if(Math.floor(player.pos[2]/500)>Math.floor(game.lastCheckpointZ/500)) game.lastCheckpointZ=Math.floor(player.pos[2]/500)*500;
-}
-function handleMaterial(mat) {
-    switch(mat.id) {
-        case MATERIALS.HAZARD.id: handlePlayerDeath(); break;
-        case MATERIALS.BOOST.id: player.speedTarget=player.baseSpeed*1.8; player.boostTimer=3.0; break;
-        case MATERIALS.ICE.id: player.vel[0]*=(1-0.2*1.0*PHYSICS_TICK_RATE); break;
-        case MATERIALS.FUEL.id: player.fuel=Math.min(100,player.fuel+50*PHYSICS_TICK_RATE); break;
-        case MATERIALS.OXY.id: player.oxygen=Math.min(100,player.oxygen+50*PHYSICS_TICK_RATE); break;
-    }
-}
-function getPlayerAABB() { return { minX:player.pos[0]-player.size[0]/2, maxX:player.pos[0]+player.size[0]/2, minY:player.pos[1]-player.size[1]/2, maxY:player.pos[1]+player.size[1]/2, minZ:player.pos[2]-player.size[2]/2, maxZ:player.pos[2]+player.size[2]/2, }; }
-function findSegmentIndexAt(z) { for (let i=0; i<game.track.segments.length; i++) { if (z>=game.track.segments[i].aabb.minZ && z<=game.track.segments[i].aabb.maxZ) return i; } let c=0, d=Infinity; for (let i=0; i<game.track.segments.length; i++) { let dist = Math.abs(z-(game.track.segments[i].aabb.minZ+game.track.segments[i].aabb.maxZ)/2); if(dist<d){d=dist;c=i;}} return c; }
-function updateCamera(dt) {
-    const desiredPos=temp.vec3; vec3.scale(desiredPos, player.vel, 0.1); vec3.add(desiredPos, player.pos, desiredPos);
-    desiredPos[1]+=camera.height; desiredPos[2]-=camera.distance;
-    vec3.lerp(camera.pos, camera.pos, desiredPos, camera.smoothSpeed*dt);
-    const targetPos=temp.vec3_2; vec3.copy(targetPos, player.pos); targetPos[1]+=1.0; targetPos[2]+=camera.lookAhead;
-    mat4.lookAt(viewMatrix, camera.pos, targetPos, UP_VECTOR);
-}
+    
+    carVelocity[0] = strafe * STRAFE_SPEED;
+    carVelocity[2] = forwardSpeed; // Apply conditional speed
 
-// ============================ Input Handling ============================
-function initInput() {
-    window.addEventListener('keydown', e => {
-        input.keys.add(e.code);
-        if (e.code==='KeyP') { if(game.state==='playing') pauseGame(); else if(game.state==='paused') resumeGame(); }
-        if (e.code==='KeyR' && (game.state==='playing'||game.state==='dead')) handlePlayerDeath(true);
-        if (e.code==='F3') { e.preventDefault(); game.debug.panel=!game.debug.panel; document.getElementById('debug-panel').style.display=game.debug.panel?'block':'none'; }
-    });
-    window.addEventListener('keyup', e => input.keys.delete(e.code));
-    document.getElementById('debug-colliders').addEventListener('change', e => game.debug.showColliders=e.target.checked);
-    document.getElementById('debug-wireframe').addEventListener('change', e => game.debug.wireframe=e.target.checked);
-}
-function pollGamepad() { if (!navigator.getGamepads) return; input.gamepad = navigator.getGamepads()[0]; }
+    if (!onGround) {
+        carVelocity[1] -= GRAVITY * deltaTime;
+    }
 
-// ============================ HUD & UI Management ============================
-const hud = {}; const debugUI = {};
-function setupUI() {
-    Object.assign(hud, { levelName: document.getElementById('level-name'), speed: document.getElementById('speed-value'), distance: document.getElementById('distance-value'), lives: document.getElementById('lives-value'), time: document.getElementById('time-value'), fps: document.getElementById('fps-value'), fuelFill: document.getElementById('fuel-fill'), oxygenFill: document.getElementById('oxygen-fill'), mainMenu: document.getElementById('main-menu-overlay'), pauseMenu: document.getElementById('pause-overlay'), resultsMenu: document.getElementById('results-overlay') });
-    Object.assign(debugUI, { pos: document.getElementById('debug-pos'), vel: document.getElementById('debug-vel'), ground: document.getElementById('debug-ground'), segment: document.getElementById('debug-segment'), segType: document.getElementById('debug-seg-type') });
-    document.getElementById('start-level-1').addEventListener('click', () => startGame(0));
-    document.getElementById('start-level-2').addEventListener('click', () => startGame(1));
-    document.getElementById('start-endless').addEventListener('click', () => startGame('endless'));
-    document.getElementById('resume-button').addEventListener('click', resumeGame);
-    document.getElementById('restart-level-button').addEventListener('click', () => { game.lives=3; startGame(game.currentLevelIndex); });
-    document.getElementById('quit-to-menu-button').addEventListener('click', quitToMenu);
-    document.getElementById('next-level-button').addEventListener('click', () => startGame(game.currentLevelIndex + 1));
-    document.getElementById('results-restart-button').addEventListener('click', () => startGame(game.currentLevelIndex));
-    document.getElementById('results-quit-button').addEventListener('click', quitToMenu);
-}
-function updateHUD() {
-    hud.speed.textContent=(player.speed*3.6).toFixed(0); hud.distance.textContent=player.pos[2].toFixed(0); hud.lives.textContent=game.lives; hud.time.textContent=game.time.toFixed(2); hud.fps.textContent=game.fps.toFixed(0);
-    hud.fuelFill.style.width=clamp(player.fuel,0,100)+'%'; hud.fuelFill.classList.toggle('low',player.fuel<20);
-    hud.oxygenFill.style.width=clamp(player.oxygen,0,100)+'%'; hud.oxygenFill.classList.toggle('low',player.oxygen<20);
-    if (game.debug.panel) {
-        debugUI.pos.textContent=`${player.pos[0].toFixed(1)}, ${player.pos[1].toFixed(1)}, ${player.pos[2].toFixed(1)}`;
-        debugUI.vel.textContent=`${player.vel[0].toFixed(1)}, ${player.vel[1].toFixed(1)}, ${player.vel[2].toFixed(1)}`;
-        debugUI.ground.textContent=player.onGround; const segIdx=findSegmentIndexAt(player.pos[2]); debugUI.segment.textContent=segIdx;
-        if(game.track && game.track.segments[segIdx]) debugUI.segType.textContent=`${game.track.segments[segIdx].type} / ${game.track.segments[segIdx].material.id}`;
+    vec3.scaleAndAdd(carPos, carPos, carVelocity, deltaTime);
+
+    // CHANGE: Instead of Game Over, call respawnPlayer
+    if (carPos[1] < -20) {
+        respawnPlayer();
     }
 }
 
-// ============================ Game State Management ============================
-function resetPlayer(toCheckpoint = false) {
-    if(toCheckpoint && game.level) { vec3.set(player.pos, 0, 2, game.lastCheckpointZ); }
-    else if (game.level) { vec3.copy(player.pos, game.level.playerStart.pos); game.lastCheckpointZ = game.level.playerStart.pos[2]; }
-    vec3.set(player.vel,0,0,0); player.onGround=false; player.speedTarget=player.baseSpeed; player.boostTimer=0;
-    if(!toCheckpoint){ player.fuel=game.level.fuelStart; player.oxygen=game.level.oxygenStart; }
-}
-function startGame(levelIndex) {
-    game.level = (levelIndex==='endless') ? generateEndlessLevel() : (levelIndex>=levels.length) ? null : levels[levelIndex];
-    if(!game.level){ quitToMenu(); return; }
-    game.currentLevelIndex=levelIndex; game.track=buildTrack(game.level); trackBuffers=createVbo(game.track);
-    resetPlayer(false); game.time=0; game.state='playing';
-    hud.mainMenu.classList.remove('visible'); hud.pauseMenu.classList.remove('visible'); hud.resultsMenu.classList.remove('visible');
-    hud.levelName.textContent=game.level.name;
-}
-function pauseGame() { if(game.state!=='playing')return; game.state='paused'; hud.pauseMenu.classList.add('visible'); }
-function resumeGame() { if(game.state!=='paused')return; game.state='playing'; hud.pauseMenu.classList.remove('visible'); }
-function quitToMenu() { game.state='menu'; hud.mainMenu.classList.add('visible'); hud.pauseMenu.classList.remove('visible'); hud.resultsMenu.classList.remove('visible'); }
-function handlePlayerDeath(isManualReset = false) {
-    if(game.state!=='playing' && !isManualReset) return;
-    game.lives--;
-    if(game.lives<0) { showResults("Game Over", false); game.lives=3; }
-    else { game.state='dead'; setTimeout(()=>{resetPlayer(true); game.state='playing';}, 1000); }
-}
-function finishLevel() { if(game.state!=='playing')return; game.state='finished'; showResults("Level Complete!"); }
-function showResults(title, showNext=true) {
-    document.getElementById('results-title').textContent=title; document.getElementById('results-time').textContent=game.time.toFixed(2)+'s';
-    const key=`best_time_${game.level.id}`; let best=parseFloat(localStorage.getItem(key)||'Infinity');
-    if(game.time<best&&title.includes('Complete')) { best=game.time; localStorage.setItem(key,best.toFixed(2)); }
-    document.getElementById('results-best-time').textContent=isFinite(best)?best.toFixed(2)+'s':'N/A';
-    document.getElementById('next-level-button').style.display=showNext?'block':'none';
-    hud.resultsMenu.classList.add('visible');
-}
-
-// ============================ Drawing Functions ============================
 function drawScene() {
-    resizeCanvasToDisplaySize(gl.canvas);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    mat4.perspective(projectionMatrix, 45*Math.PI/180, gl.canvas.clientWidth/gl.canvas.clientHeight, 0.1, 4000.0);
-    drawSky();
-    gl.useProgram(mainProgramInfo.program);
-    gl.uniformMatrix4fv(mainProgramInfo.uniformLocations.projectionMatrix, false, projectionMatrix);
-    gl.uniformMatrix4fv(mainProgramInfo.uniformLocations.viewMatrix, false, viewMatrix);
-    gl.uniform3fv(mainProgramInfo.uniformLocations.cameraPosition, camera.pos);
-    drawTrack();
-    drawPlayer();
-    if (game.debug.showColliders) drawColliders();
+    gl.useProgram(shaderProgram);
+
+    const projectionMatrix = mat4.create();
+    mat4.perspective(projectionMatrix, toRadian(75), gl.canvas.width / gl.canvas.height, 0.1, 1000.0);
+    gl.uniformMatrix4fv(uniformLocations.uProjection, false, projectionMatrix);
+
+    const viewMatrix = mat4.create();
+    const cameraOffset = vec3.fromValues(0, 5, -10);
+    const cameraPos = vec3.create();
+    vec3.add(cameraPos, carPos, cameraOffset);
+    vec3.lerp(cameraTarget, cameraTarget, carPos, 0.1);
+    mat4.lookAt(viewMatrix, cameraPos, cameraTarget, [0, 1, 0]);
+    gl.uniformMatrix4fv(uniformLocations.uView, false, viewMatrix);
+
+    const trackModelMatrix = mat4.create();
+    drawObject(buffers.track, textures.track, trackModelMatrix);
+
+    const carModelMatrix = mat4.create();
+    mat4.translate(carModelMatrix, carModelMatrix, carPos);
+    drawObject(buffers.car, textures.car, carModelMatrix);
 }
-function drawTrack() {
-    if (!trackBuffers) return;
-    gl.bindBuffer(gl.ARRAY_BUFFER, trackBuffers.position); gl.vertexAttribPointer(mainProgramInfo.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0); gl.enableVertexAttribArray(mainProgramInfo.attribLocations.vertexPosition);
-    gl.bindBuffer(gl.ARRAY_BUFFER, trackBuffers.normal); gl.vertexAttribPointer(mainProgramInfo.attribLocations.vertexNormal, 3, gl.FLOAT, false, 0, 0); gl.enableVertexAttribArray(mainProgramInfo.attribLocations.vertexNormal);
-    gl.bindBuffer(gl.ARRAY_BUFFER, trackBuffers.materialId); gl.vertexAttribPointer(mainProgramInfo.attribLocations.materialId, 1, gl.FLOAT, false, 0, 0); gl.enableVertexAttribArray(mainProgramInfo.attribLocations.materialId);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, trackBuffers.indices);
-    mat4.identity(temp.mat4); 
-    gl.uniformMatrix4fv(mainProgramInfo.uniformLocations.modelMatrix, false, temp.mat4);
 
-    const normalMatrix = mat3.create();
-    mat3.identity(normalMatrix);
-    gl.uniformMatrix3fv(mainProgramInfo.uniformLocations.normalMatrix, false, normalMatrix);
-
-    gl.drawElements(game.debug.wireframe ? gl.LINES : gl.TRIANGLES, trackBuffers.vertexCount, gl.UNSIGNED_SHORT, 0);
-}
-function drawPlayer() {
-    gl.bindBuffer(gl.ARRAY_BUFFER, playerBuffers.position); gl.vertexAttribPointer(mainProgramInfo.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0); gl.enableVertexAttribArray(mainProgramInfo.attribLocations.vertexPosition);
-    gl.bindBuffer(gl.ARRAY_BUFFER, playerBuffers.normal); gl.vertexAttribPointer(mainProgramInfo.attribLocations.vertexNormal, 3, gl.FLOAT, false, 0, 0); gl.enableVertexAttribArray(mainProgramInfo.attribLocations.vertexNormal);
-    gl.bindBuffer(gl.ARRAY_BUFFER, playerBuffers.materialId); gl.vertexAttribPointer(mainProgramInfo.attribLocations.materialId, 1, gl.FLOAT, false, 0, 0); gl.enableVertexAttribArray(mainProgramInfo.attribLocations.materialId);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, playerBuffers.indices);
-    const modelMatrix=temp.mat4; mat4.fromTranslation(modelMatrix,player.pos); mat4.rotateZ(modelMatrix,modelMatrix,-player.vel[0]*0.05);
-    gl.uniformMatrix4fv(mainProgramInfo.uniformLocations.modelMatrix, false, modelMatrix);
-
-    const normalMatrix = mat3.create();
-    mat3.fromMat4(normalMatrix, modelMatrix);
-    mat3.invert(normalMatrix, normalMatrix);
-    mat3.transpose(normalMatrix, normalMatrix);
-    gl.uniformMatrix3fv(mainProgramInfo.uniformLocations.normalMatrix, false, normalMatrix);
-
-    gl.drawElements(gl.TRIANGLES, playerBuffers.vertexCount, gl.UNSIGNED_SHORT, 0);
-}
-function drawColliders() {
-    if(!game.track) return;
-    gl.bindBuffer(gl.ARRAY_BUFFER, cubeBuffers.position); gl.vertexAttribPointer(mainProgramInfo.attribLocations.vertexPosition,3,gl.FLOAT,false,0,0); gl.enableVertexAttribArray(mainProgramInfo.attribLocations.vertexPosition);
-    gl.bindBuffer(gl.ARRAY_BUFFER, cubeBuffers.normal); gl.vertexAttribPointer(mainProgramInfo.attribLocations.vertexNormal,3,gl.FLOAT,false,0,0); gl.enableVertexAttribArray(mainProgramInfo.attribLocations.vertexNormal);
-    gl.disableVertexAttribArray(mainProgramInfo.attribLocations.materialId); gl.vertexAttrib1f(mainProgramInfo.attribLocations.materialId, MATERIALS.PLAYER.id);
+function drawObject(bufferObj, texture, modelMatrix) {
+    if (!bufferObj || !bufferObj.buffer || bufferObj.vertexCount === 0) return;
     
-    game.track.segments.forEach(seg=>{
-        if (seg.type === 'gap') return;
-        const aabb=seg.aabb; const center=[(aabb.minX+aabb.maxX)/2, (aabb.minY+aabb.maxY)/2, (aabb.minZ+aabb.maxZ)/2]; const size=[aabb.maxX-aabb.minX, aabb.maxY-aabb.minY, aabb.maxZ-aabb.minZ];
-        const modelMatrix=mat4.create(); mat4.fromTranslation(modelMatrix,center); mat4.scale(modelMatrix,modelMatrix,size);
-        gl.uniformMatrix4fv(mainProgramInfo.uniformLocations.modelMatrix,false,modelMatrix);
+    const stride = 5 * Float32Array.BYTES_PER_ELEMENT;
+    const positionOffset = 0;
+    const texCoordOffset = 3 * Float32Array.BYTES_PER_ELEMENT;
 
-        const normalMatrix = mat3.create();
-        mat3.fromMat4(normalMatrix, modelMatrix);
-        mat3.invert(normalMatrix, normalMatrix);
-        mat3.transpose(normalMatrix, normalMatrix);
-        gl.uniformMatrix3fv(mainProgramInfo.uniformLocations.normalMatrix, false, normalMatrix);
-
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cubeBuffers.wireframeIndices);
-        gl.drawElements(gl.LINES, cubeBuffers.wireframeVertexCount, gl.UNSIGNED_SHORT, 0);
-    });
-}
-function drawSky() {
-    gl.useProgram(skyProgramInfo.program); gl.depthMask(false);
-    gl.bindBuffer(gl.ARRAY_BUFFER, skyBuffers.position); gl.vertexAttribPointer(skyProgramInfo.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0); gl.enableVertexAttribArray(skyProgramInfo.attribLocations.vertexPosition);
-    gl.uniformMatrix4fv(skyProgramInfo.uniformLocations.projectionMatrix, false, projectionMatrix);
-    gl.uniformMatrix4fv(skyProgramInfo.uniformLocations.viewMatrix, false, viewMatrix);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, skyBuffers.indices);
-    gl.drawElements(gl.TRIANGLES, skyBuffers.vertexCount, gl.UNSIGNED_SHORT, 0);
-    gl.depthMask(true);
-}
-
-// ============================ Main Render Loop ============================
-function render(time) {
-    time *= 0.001;
-    const deltaTime = Math.min(time - game.lastTime, 0.1); // Clamp delta to avoid spiral of death
-    game.lastTime = time;
-
-    if (game.state === 'playing') game.time += deltaTime;
-
-    game.fps = 0.95 * game.fps + 0.05 * (1 / deltaTime);
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufferObj.buffer);
+    gl.vertexAttribPointer(attribLocations.aPosition, 3, gl.FLOAT, false, stride, positionOffset);
+    gl.enableVertexAttribArray(attribLocations.aPosition);
+    gl.vertexAttribPointer(attribLocations.aTexCoord, 2, gl.FLOAT, false, stride, texCoordOffset);
+    gl.enableVertexAttribArray(attribLocations.aTexCoord);
     
-    game.accumulator += deltaTime;
-    let updates = 0;
-    while (game.accumulator >= PHYSICS_TICK_RATE && updates < MAX_UPDATES_PER_FRAME) {
-        updatePhysics(PHYSICS_TICK_RATE);
-        game.accumulator -= PHYSICS_TICK_RATE;
-        updates++;
+    gl.uniformMatrix4fv(uniformLocations.uModel, false, modelMatrix);
+    
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.uniform1i(uniformLocations.uTexture, 0);
+    
+    gl.drawArrays(gl.TRIANGLES, 0, bufferObj.vertexCount);
+}
+
+// ============================ 2D Overlay / HUD ============================
+function updateHUD() {
+    const overlay = document.getElementById("hudCanvas");
+    const ctx = overlay.getContext("2d");
+    if (overlay.width !== window.innerWidth || overlay.height !== window.innerHeight) {
+        overlay.width = window.innerWidth;
+        overlay.height = window.innerHeight;
     }
+    ctx.clearRect(0, 0, overlay.width, overlay.height);
 
-    updateCamera(deltaTime);
-    updateHUD();
-    drawScene();
+    ctx.fillStyle = "white";
+    ctx.font = "bold 32px monospace";
+    ctx.textAlign = "left";
+    ctx.fillText(`SCORE: ${score}`, 20, 40);
 
-    requestAnimationFrame(render);
+    // CHANGE: Updated instructions for new controls
+    ctx.font = "16px monospace";
+    ctx.fillText("A/D or Arrows: Steer", 20, overlay.height - 60);
+    ctx.fillText("W or Up Arrow: Accelerate", 20, overlay.height - 40);
+    ctx.fillText("Spacebar: Jump", 20, overlay.height - 20);
+
+    // CHANGE: Removed the 'gameover' screen logic
 }
 
-// ============================ Initialization & Main ============================
-function init() {
-    const canvas = document.getElementById('glCanvas');
-    gl = canvas.getContext('webgl', { antialias: true, alpha: false, stencil: false, depth: true });
-    if (!gl) { alert('WebGL not supported!'); return; }
-    
-    mainProgram = initShaderProgram(gl, vsSource, fsSource);
-    skyProgram = initShaderProgram(gl, skyVsSource, skyFsSource);
-
-    if (!mainProgram || !skyProgram) {
-        console.error("Shader program failed to initialize. See error logs.");
-        return;
-    }
-
-    mainProgramInfo = {
-        program: mainProgram,
-        attribLocations: {
-            vertexPosition: gl.getAttribLocation(mainProgram, 'aVertexPosition'),
-            vertexNormal: gl.getAttribLocation(mainProgram, 'aVertexNormal'),
-            materialId: gl.getAttribLocation(mainProgram, 'aMaterialId'),
-        },
-        uniformLocations: {
-            projectionMatrix: gl.getUniformLocation(mainProgram, 'uProjectionMatrix'),
-            viewMatrix: gl.getUniformLocation(mainProgram, 'uViewMatrix'),
-            modelMatrix: gl.getUniformLocation(mainProgram, 'uModelMatrix'),
-            cameraPosition: gl.getUniformLocation(mainProgram, 'uCameraPosition'),
-            normalMatrix: gl.getUniformLocation(mainProgram, 'uNormalMatrix'),
-        },
-    };
-    skyProgramInfo = {
-        program: skyProgram,
-        attribLocations: { vertexPosition: gl.getAttribLocation(skyProgram, 'aVertexPosition'), },
-        uniformLocations: { projectionMatrix: gl.getUniformLocation(skyProgram, 'uProjectionMatrix'), viewMatrix: gl.getUniformLocation(skyProgram, 'uViewMatrix'), },
-    };
-
-    playerBuffers = createPlayerBuffers();
-    cubeBuffers = createCubeBuffers();
-    skyBuffers = createCubeBuffers(2000.0);
-
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.enable(gl.DEPTH_TEST);
-    gl.depthFunc(gl.LEQUAL);
-    gl.enable(gl.CULL_FACE);
-
-    initInput();
-    setupUI();
-    requestAnimationFrame(render);
-}
-
+// ============================ Window Load & Resize ============================
 window.onload = init;
+window.onresize = () => {
+    if (!gl) return;
+    const canvas = document.getElementById("glCanvas");
+    const overlay = document.getElementById("hudCanvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    overlay.width = window.innerWidth;
+    overlay.height = window.innerHeight;
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+};

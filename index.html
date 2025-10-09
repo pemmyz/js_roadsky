@@ -1,98 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>WebGL SkyRoads</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- Use the new gl-matrix-min.js, assuming it's the latest version -->
-    <script src="gl-matrix-min_old.js"></script>
+  <meta charset="utf-8">
+  <title>WebGL Sky Driver</title>
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- This line is essential. It loads the gl-matrix library from the internet. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix-min.js"></script>
+
 </head>
 <body>
-    <div id="game-container">
-        <!-- Changed ID to glCanvas for consistency with the maze game example -->
-        <canvas id="glCanvas"></canvas>
-        
-        <div id="hud">
-            <div class="hud-top-left">
-                <div id="level-name">Level 1 - The Jump</div>
-                <div class="stat-line">Speed: <span id="speed-value">0</span> km/h</div>
-                <div class="stat-line">Distance: <span id="distance-value">0</span> m</div>
-                <div class="stat-line">Lives: <span id="lives-value">3</span></div>
-                <div class="stat-line">Time: <span id="time-value">0.00</span>s</div>
-            </div>
-            <div class="hud-bottom-left">
-                <div class="resource-bar">
-                    <span class="label">FUEL</span>
-                    <div id="fuel-bar" class="bar-container" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
-                        <div id="fuel-fill" class="bar-fill fuel"></div>
-                    </div>
-                </div>
-                <div class="resource-bar">
-                    <span class="label">OXY</span>
-                    <div id="oxygen-bar" class="bar-container" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
-                        <div id="oxygen-fill" class="bar-fill oxygen"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="hud-top-right">
-                <div class="stat-line">FPS: <span id="fps-value">60</span></div>
-            </div>
-             <div class="hud-bottom-right">
-                <div id="key-hints">
-                    [W/S] Accel/Brake [A/D] Strafe [SPACE] Jump [R] Reset [P] Pause
-                </div>
-            </div>
-        </div>
+  <canvas id="glCanvas"></canvas>
+  <canvas id="hudCanvas"></canvas>
 
-        <div id="main-menu-overlay" class="overlay visible">
-            <div class="overlay-content">
-                <h1>WebGL SkyRoads</h1>
-                <p>Select a level to begin.</p>
-                <button id="start-level-1">Level 1 - The Basics</button>
-                <button id="start-level-2">Level 2 - The Gauntlet</button>
-                <button id="start-endless">Endless Mode</button>
-                <div class="controls-info">
-                    Controls: W/S/A/D, Space, R, P
-                </div>
-            </div>
-        </div>
-
-        <div id="pause-overlay" class="overlay">
-            <div class="overlay-content">
-                <h1>Paused</h1>
-                <button id="resume-button">Resume</button>
-                <button id="restart-level-button">Restart Level</button>
-                <button id="quit-to-menu-button">Quit to Menu</button>
-            </div>
-        </div>
-
-        <div id="results-overlay" class="overlay">
-             <div class="overlay-content">
-                <h1 id="results-title">Level Complete!</h1>
-                <p>Time: <span id="results-time">0.00</span>s</p>
-                <p>Best Time: <span id="results-best-time">0.00</span>s</p>
-                <div id="results-buttons">
-                    <button id="next-level-button">Next Level</button>
-                    <button id="results-restart-button">Restart</button>
-                    <button id="results-quit-button">Main Menu</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="debug-panel">
-            <h3>Debug Info (F3)</h3>
-            <div>Player Pos: <span id="debug-pos"></span></div>
-            <div>Player Vel: <span id="debug-vel"></span></div>
-            <div>On Ground: <span id="debug-ground"></span></div>
-            <div>Segment Idx: <span id="debug-segment"></span></div>
-            <div>Segment Type: <span id="debug-seg-type"></span></div>
-            <hr/>
-            <label><input type="checkbox" id="debug-colliders"> Show Colliders</label>
-            <label><input type="checkbox" id="debug-wireframe"> Wireframe</label>
-        </div>
-    </div>
-    
-    <script src="script.js" defer></script>
+  <!-- Your script is loaded last, ensuring the library above is ready first. -->
+  <script src="script.js"></script>
 </body>
 </html>
