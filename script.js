@@ -53,22 +53,44 @@ function initShaderProgram(gl, vsSource, fsSource) {
   }
   return shaderProgram;
 }
-function loadTexture(gl, url) {
+
+function createSolidColorTexture(gl, r, g, b) {
   const texture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, texture);
-  const pixel = new Uint8Array([128, 128, 128, 255]); // Grey pixel
+  const pixel = new Uint8Array([r, g, b, 255]);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-  const image = new Image();
-  image.crossOrigin = "anonymous"; // Important for loading from other domains
-  image.onload = function() {
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-    gl.generateMipmap(gl.TEXTURE_2D);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  };
-  image.src = url;
   return texture;
+}
+
+// CHANGE: New function to programmatically create a checkerboard texture
+function createCheckerboardTexture(gl) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const textureSize = 64; // Power of 2 for good mipmapping
+    const checkSize = textureSize / 2;
+    canvas.width = textureSize;
+    canvas.height = textureSize;
+    
+    const color1 = "#C8C8C8"; // Lighter Grey
+    const color2 = "#969696"; // Grey
+    
+    for (let i = 0; i < 2; i++) {
+        for (let j = 0; j < 2; j++) {
+            ctx.fillStyle = (i + j) % 2 === 0 ? color1 : color2;
+            ctx.fillRect(i * checkSize, j * checkSize, checkSize, checkSize);
+        }
+    }
+
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    // Use NEAREST for a sharp, pixelated checkerboard look
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    return texture;
 }
 
 // ============================ Track Generation ============================
@@ -92,13 +114,15 @@ function createTrack(length, seed) {
     let currentY = 0;
     const platformHeight = 0.5;
 
-    // CHANGE: Starting platform is now 5x longer (depth: 100)
     platforms.push({ x: 0, y: 0, z: 0, width: 10, depth: 100, height: platformHeight });
-    // CHANGE: Update starting Z for the next platform to account for the longer start
     currentZ = 100;
 
     for (let i = 0; i < length; i++) {
-        const gap = rng() * 5 + 3;
+        // CHANGE: Tighter gap constraint. Max gap is 1.8 (3 * 0.6 car height).
+        const minGap = 1.0;
+        const maxGap = 1.8; 
+        const gap = rng() * (maxGap - minGap) + minGap;
+
         currentZ += gap;
         const width = rng() * 8 + 4;
         const depth = rng() * 15 + 10;
@@ -115,23 +139,32 @@ function createTrack(length, seed) {
 }
 
 // ============================ Geometry Generation ============================
-function createCubeGeometry(width, height, depth) {
+// CHANGE: Function now accepts checkSize to scale texture coordinates
+function createCubeGeometry(width, height, depth, checkSize = 1.0) {
     const w = width / 2, h = height / 2, d = depth / 2;
+    // Calculate how many times the texture should repeat on each axis
+    const uMaxW = width / checkSize;
+    const uMaxD = depth / checkSize;
+    const vMaxH = height / checkSize;
+    const vMaxD = depth / checkSize;
+
     return new Float32Array([
         // x, y, z, u, v
-        -w,-h,d,0,0, w,-h,d,1,0, w,h,d,1,1, -w,-h,d,0,0, w,h,d,1,1, -w,h,d,0,1, // Front
-        -w,-h,-d,1,0, -w,h,-d,1,1, w,h,-d,0,1, -w,-h,-d,1,0, w,h,-d,0,1, w,-h,-d,0,0, // Back
-        -w,h,-d,0,1, -w,h,d,0,0, w,h,d,1,0, -w,h,-d,0,1, w,h,d,1,0, w,h,-d,1,1, // Top
-        -w,-h,-d,0,0, w,-h,-d,1,0, w,-h,d,1,1, -w,-h,-d,0,0, w,-h,d,1,1, -w,h,d,0,1, // Bottom
-        w,-h,-d,1,0, w,h,-d,1,1, w,h,d,0,1, w,-h,-d,1,0, w,h,d,0,1, w,-h,d,0,0, // Right
-        -w,-h,-d,0,0, -w,-h,d,1,0, -w,h,d,1,1, -w,-h,-d,0,0, -w,h,d,1,1, -w,h,-d,0,1, // Left
+        -w, -h, d, 0, 0,       w, -h, d, uMaxW, 0,       w, h, d, uMaxW, vMaxH,  -w, -h, d, 0, 0,       w, h, d, uMaxW, vMaxH,  -w, h, d, 0, vMaxH, // Front
+        -w, -h, -d, uMaxW, 0,  -w, h, -d, uMaxW, vMaxH,  w, h, -d, 0, vMaxH,      -w, -h, -d, uMaxW, 0,  w, h, -d, 0, vMaxH,      w, -h, -d, 0, 0, // Back
+        -w, h, -d, 0, vMaxD,   -w, h, d, 0, 0,          w, h, d, uMaxW, 0,        -w, h, -d, 0, vMaxD,   w, h, d, uMaxW, 0,        w, h, -d, uMaxW, vMaxD, // Top
+        -w, -h, -d, 0, 0,      w, -h, -d, uMaxW, 0,      w, -h, d, uMaxW, vMaxD,  -w, -h, -d, 0, 0,      w, -h, d, uMaxW, vMaxD,  -w, -h, d, 0, vMaxD, // Bottom
+        w, -h, -d, uMaxD, 0,   w, h, -d, uMaxD, vMaxH,   w, h, d, 0, vMaxH,       w, -h, -d, uMaxD, 0,   w, h, d, 0, vMaxH,       w, -h, d, 0, 0, // Right
+        -w, -h, -d, 0, 0,      -w, -h, d, uMaxD, 0,      -w, h, d, uMaxD, vMaxH,  -w, -h, -d, 0, 0,      -w, h, d, uMaxD, vMaxH,  -w, h, -d, uMaxD, vMaxH, // Left
     ]);
 }
 
 function buildTrackGeometry(platforms) {
     const allVerts = [];
+    const checkSize = 0.2; // 1/3 of car height (0.6)
     for (const p of platforms) {
-        const cubeVerts = createCubeGeometry(p.width, p.height, p.depth);
+        // CHANGE: Pass platform dimensions and checkSize to the geometry creator
+        const cubeVerts = createCubeGeometry(p.width, p.height, p.depth, checkSize);
         for (let i = 0; i < cubeVerts.length; i += 5) {
             allVerts.push(
                 cubeVerts[i] + p.x,
@@ -153,19 +186,17 @@ let textures = {};
 let trackData, geometry;
 let carPos, carVelocity, cameraTarget;
 let score = 0;
-let gameState = 'playing'; // Game state is now always 'playing'
+let gameState = 'playing';
 let lastFrameTime = 0;
 const keysDown = {};
 const GRAVITY = 25.0, FORWARD_SPEED = 25.0, STRAFE_SPEED = 15.0, JUMP_STRENGTH = 10.0;
 
-// CHANGE: Create a dedicated respawn function
 function respawnPlayer() {
     console.log("Player fell, respawning...");
-    vec3.set(carPos, 0, 2, 5); // Reset position to the start
-    vec3.set(carVelocity, 0, 0, 0); // Reset velocity to zero
+    vec3.set(carPos, 0, 2, 5);
+    vec3.set(carVelocity, 0, 0, 0);
 }
 
-// This function now resets the entire track and score
 function restartGame() {
     console.log("Restarting game with new track...");
     vec3.set(carPos, 0, 2, 5);
@@ -200,8 +231,9 @@ function init() {
     uTexture: gl.getUniformLocation(shaderProgram, "uTexture")
   };
     
-  textures.track = loadTexture(gl, "https://raw.githubusercontent.com/emilyxxie/emilyxxie.github.io/master/images/ground.jpg");
-  textures.car = loadTexture(gl, "https://raw.githubusercontent.com/emilyxxie/emilyxxie.github.io/master/images/roof.jpg");
+  // CHANGE: Use new functions to create a checkered texture and a red texture
+  textures.track = createCheckerboardTexture(gl);
+  textures.car = createSolidColorTexture(gl, 255, 0, 0);
 
   trackData = createTrack(100, 12345); 
   geometry = buildTrackGeometry(trackData);
@@ -222,6 +254,7 @@ function initBuffers() {
   if (buffers.track) gl.deleteBuffer(buffers.track.buffer);
   if (buffers.car) gl.deleteBuffer(buffers.car.buffer);
   buffers.track = initBuffer(geometry);
+  // CHANGE: The car geometry does not need a checkSize, as it's a solid color
   buffers.car = initBuffer(createCubeGeometry(1.0, 0.6, 2.0)); 
 }
 
@@ -238,7 +271,6 @@ function render(now) {
   const deltaTime = Math.min(0.1, (now - lastFrameTime) / 1000.0);
   lastFrameTime = now;
   
-  // CHANGE: Game is always updating the car now, no 'gameover' state check
   updateCar(deltaTime);
   score = Math.max(score, Math.floor(carPos[2]));
 
@@ -260,24 +292,21 @@ function updateCar(deltaTime) {
         }
     }
     
-    // --- Sideways Movement ---
     let strafe = 0;
     if (keysDown['a'] || keysDown['arrowleft']) strafe = -1;
     else if (keysDown['d'] || keysDown['arrowright']) strafe = 1;
 
-    // CHANGE: Jump is now only on Spacebar
     if (keysDown[' '] && onGround) {
         carVelocity[1] = JUMP_STRENGTH;
     }
 
-    // CHANGE: Forward acceleration is now conditional on W / ArrowUp
     let forwardSpeed = 0;
     if (keysDown['w'] || keysDown['arrowup']) {
         forwardSpeed = FORWARD_SPEED;
     }
     
     carVelocity[0] = strafe * STRAFE_SPEED;
-    carVelocity[2] = forwardSpeed; // Apply conditional speed
+    carVelocity[2] = forwardSpeed;
 
     if (!onGround) {
         carVelocity[1] -= GRAVITY * deltaTime;
@@ -285,7 +314,6 @@ function updateCar(deltaTime) {
 
     vec3.scaleAndAdd(carPos, carPos, carVelocity, deltaTime);
 
-    // CHANGE: Instead of Game Over, call respawnPlayer
     if (carPos[1] < -20) {
         respawnPlayer();
     }
@@ -353,13 +381,10 @@ function updateHUD() {
     ctx.textAlign = "left";
     ctx.fillText(`SCORE: ${score}`, 20, 40);
 
-    // CHANGE: Updated instructions for new controls
     ctx.font = "16px monospace";
     ctx.fillText("A/D or Arrows: Steer", 20, overlay.height - 60);
     ctx.fillText("W or Up Arrow: Accelerate", 20, overlay.height - 40);
     ctx.fillText("Spacebar: Jump", 20, overlay.height - 20);
-
-    // CHANGE: Removed the 'gameover' screen logic
 }
 
 // ============================ Window Load & Resize ============================
