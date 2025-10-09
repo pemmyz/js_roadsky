@@ -121,7 +121,6 @@ function createTrack(length, seed) {
         const maxGap = 1.8; 
         const gap = rng() * (maxGap - minGap) + minGap;
 
-        // CHANGE: This line was missing and caused the ReferenceError. It has been restored.
         const width = rng() * 8 + 4;
         const depth = rng() * 15 + 10;
         
@@ -162,7 +161,6 @@ function createCubeGeometry(width, height, depth, checkSize = 1.0) {
 
 function buildTrackGeometry(platforms) {
     const allVerts = [];
-    // CHANGE: checkSize is now 0.6 to match the player cube's height.
     const checkSize = 0.6; 
     for (const p of platforms) {
         const cubeVerts = createCubeGeometry(p.width, p.height, p.depth, checkSize);
@@ -292,8 +290,9 @@ function updateCar(deltaTime) {
     }
     
     let strafe = 0;
-    if (keysDown['a'] || keysDown['arrowleft']) strafe = -1;
-    else if (keysDown['d'] || keysDown['arrowright']) strafe = 1;
+    // CHANGE: Swapped the values for strafe to fix the inverted controls.
+    if (keysDown['a'] || keysDown['arrowleft']) strafe = 1; // Positive X is left on screen
+    else if (keysDown['d'] || keysDown['arrowright']) strafe = -1; // Negative X is right on screen
 
     if (keysDown[' '] && onGround) {
         carVelocity[1] = JUMP_STRENGTH;
