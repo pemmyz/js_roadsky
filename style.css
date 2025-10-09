@@ -1,0 +1,199 @@
+:root {
+    --hud-bg: rgba(10, 20, 30, 0.7);
+    --hud-text: #e0e8f0;
+    --fuel-color: #f0a020;
+    --oxygen-color: #20a0f0;
+    --hazard-color: #e04040;
+    --boost-color: #40e040;
+    --font-stack: 'Lucida Console', 'Courier New', monospace;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #000;
+    color: var(--hud-text);
+    font-family: var(--font-stack);
+    font-size: 16px;
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+#glcanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-crisp-edges;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+/* HUD Styling */
+#hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding: 1.5vmin;
+    box-sizing: border-box;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+}
+
+.hud-top-left, .hud-top-right, .hud-bottom-left, .hud-bottom-right {
+    padding: 1.5vmin;
+    background: var(--hud-bg);
+    border-radius: 8px;
+    backdrop-filter: blur(5px);
+}
+
+.hud-top-right {
+    position: absolute;
+    top: 1.5vmin;
+    right: 1.5vmin;
+}
+
+.hud-bottom-right {
+    position: absolute;
+    bottom: 1.5vmin;
+    right: 1.5vmin;
+    font-size: 0.9em;
+    opacity: 0.7;
+}
+
+.stat-line {
+    margin-bottom: 0.5em;
+}
+
+#level-name {
+    font-weight: bold;
+    font-size: 1.2em;
+    margin-bottom: 1em;
+    color: #fff;
+}
+
+.resource-bar {
+    margin-top: 1em;
+}
+
+.resource-bar .label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 0.25em;
+}
+
+.bar-container {
+    width: 250px;
+    height: 20px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    width: 100%;
+    transition: width 0.2s ease-out, background-color 0.3s;
+    border-radius: 3px;
+}
+
+.bar-fill.fuel { background-color: var(--fuel-color); }
+.bar-fill.oxygen { background-color: var(--oxygen-color); }
+.bar-fill.low { animation: pulse-warning 1s infinite; }
+
+@keyframes pulse-warning {
+    0%, 100% { background-color: var(--hazard-color); }
+    50% { opacity: 0.7; }
+}
+
+/* Overlays (Pause, Menu, Results) */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    z-index: 10;
+}
+
+.overlay.visible {
+    display: flex;
+}
+
+.overlay-content {
+    background: var(--hud-bg);
+    padding: 40px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.2);
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+.overlay h1 {
+    margin-top: 0;
+    color: #fff;
+}
+
+.overlay button {
+    display: block;
+    width: 100%;
+    padding: 12px 20px;
+    margin: 10px 0;
+    font-family: var(--font-stack);
+    font-size: 1em;
+    background: #334;
+    color: var(--hud-text);
+    border: 1px solid #556;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+    pointer-events: all;
+}
+
+.overlay button:hover, .overlay button:focus {
+    background: #445;
+    border-color: #778;
+    outline: none;
+}
+
+.controls-info {
+    margin-top: 20px;
+    opacity: 0.7;
+    font-size: 0.9em;
+}
+
+/* Debug Panel */
+#debug-panel {
+    position: fixed;
+    bottom: 1.5vmin;
+    left: 1.5vmin;
+    padding: 10px;
+    background: rgba(0,0,0,0.8);
+    border: 1px solid #444;
+    border-radius: 5px;
+    font-size: 12px;
+    display: none;
+    z-index: 20;
+    pointer-events: all;
+}
+#debug-panel h3 { margin: 0 0 10px 0; }
+#debug-panel div { margin-bottom: 5px; }
+#debug-panel label { display: block; margin-top: 5px; }
