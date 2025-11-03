@@ -13,9 +13,33 @@
   <canvas id="glCanvas"></canvas>
   <canvas id="hudCanvas"></canvas>
 
-  <!-- Help Menu Overlay -->
+  <!-- [MODIFIED] Help Menu Overlay with README content -->
   <div id="helpMenu" class="hidden">
-    <h2>Help / Settings</h2>
+    <h2>WebGL Sky Driver 🛫✨ Help</h2>
+    
+    <h3>🎮 Features</h3>
+    <ul>
+      <li><b>Procedural track generation</b> with a deterministic seed.</li>
+      <li><b>Two camera styles:</b> Dynamic (swings on turns) and Static (fixed chase cam).</li>
+      <li><b>Simple physics:</b> Gravity, grounded jumping, and lateral steering.</li>
+      <li><b>Minimalist WebGL rendering</b> with a 2D Canvas HUD for the score.</li>
+      <li>Responsive canvas that resizes to the viewport.</li>
+    </ul>
+
+    <h3>⌨️ Controls</h3>
+    <table>
+      <thead>
+        <tr><th>Action</th><th>Keys</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Accelerate</td><td>W / ↑ Up Arrow</td></tr>
+        <tr><td>Steer Left</td><td>A / ← Left Arrow</td></tr>
+        <tr><td>Steer Right</td><td>D / → Right Arrow</td></tr>
+        <tr><td>Jump</td><td>Spacebar</td></tr>
+        <tr><td>Toggle Help</td><td>H</td></tr>
+      </tbody>
+    </table>
+
     <div class="setting">
       <p>Camera Style:</p>
       <div class="options">
@@ -26,14 +50,13 @@
          Camera swings out during turns.
       </p>
     </div>
-    <div class="controls-list">
-        <h3>Controls</h3>
-        <p><b>W / Up Arrow:</b> Accelerate</p>
-        <p><b>A/D / Arrows:</b> Steer Left/Right</p>
-        <p><b>Spacebar:</b> Jump</p>
-    </div>
-    <p class="close-info">Press 'H' to close this menu and resume</p>
+    <hr>
+    <p>Link to repo: <a href="https://github.com/pemmyz/js_roadsky" target="_blank" rel="noopener noreferrer">https://github.com/pemmyz/js_roadsky</a></p>
+    <button id="close-help-btn">Close</button>
   </div>
+
+  <!-- [NEW] Help toggle button in the corner -->
+  <div id="help-toggle-button">Press 'H' for Help</div>
 
   <!-- Your script is loaded last, ensuring the library above is ready first. -->
   <script src="script.js"></script>

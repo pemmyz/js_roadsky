@@ -277,6 +277,10 @@ function setupEventListeners() {
     });
     window.addEventListener("keyup",   e => { keysDown[e.key.toLowerCase()] = false; });
 
+    // [NEW] Add listeners for the new help buttons
+    document.getElementById('help-toggle-button').addEventListener('click', toggleHelpMenu);
+    document.getElementById('close-help-btn').addEventListener('click', toggleHelpMenu);
+
     const btnInverted = document.getElementById('controlsInverted');
     const btnNormal = document.getElementById('controlsNormal');
     const cameraDesc = document.getElementById('camera-desc');
@@ -429,14 +433,8 @@ function updateHUD() {
     ctx.font = "bold 32px monospace";
     ctx.textAlign = "left";
     ctx.fillText(`SCORE: ${score}`, 20, 40);
-
-    ctx.font = "bold 16px monospace";
-    ctx.fillText("Press H for Help/Settings", 20, overlay.height - 80);
-
-    ctx.font = "16px monospace";
-    ctx.fillText("A/D or Arrows: Steer", 20, overlay.height - 60);
-    ctx.fillText("W or Up Arrow: Accelerate", 20, overlay.height - 40);
-    ctx.fillText("Spacebar: Jump", 20, overlay.height - 20);
+    
+    // [REMOVED] Redundant help text drawing is no longer needed.
 }
 
 // ============================ Window Load & Resize ============================
