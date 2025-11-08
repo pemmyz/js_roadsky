@@ -7,7 +7,7 @@ A lightweight WebGL driving/runner prototype rendered on HTML5 Canvas with a sim
 > **Live tech:** WebGL 1.0, HTML5 Canvas 2D (HUD), vanilla JS, gl-matrix 2.8.1
 
 ## Screenshots
-![Game 1](screenshots/game_2.png)
+![Game 1](screenshots/game_1.png)
 
 ---
 
