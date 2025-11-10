@@ -7,7 +7,9 @@ function lerp(a, b, t) {
 }
 
 // ============================ Shader Sources ============================
-const vsSource = `
+
+// Shader for textured objects like the track
+const vsSourceTexture = `
   attribute vec3 aPosition;
   attribute vec2 aTexCoord;
   uniform mat4 uProjection;
@@ -19,7 +21,7 @@ const vsSource = `
       vTexCoord = aTexCoord;
   }
 `;
-const fsSource = `
+const fsSourceTexture = `
   precision mediump float;
   varying vec2 vTexCoord;
   uniform sampler2D uTexture;
@@ -27,6 +29,28 @@ const fsSource = `
       gl_FragColor = texture2D(uTexture, vTexCoord);
   }
 `;
+
+// [NEW] Shader for solid-colored objects like the car
+const vsSourceColor = `
+  attribute vec3 aPosition;
+  attribute vec3 aColor;
+  uniform mat4 uProjection;
+  uniform mat4 uView;
+  uniform mat4 uModel;
+  varying vec3 vColor;
+  void main(void) {
+      gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
+      vColor = aColor;
+  }
+`;
+const fsSourceColor = `
+  precision mediump float;
+  varying vec3 vColor;
+  void main(void) {
+      gl_FragColor = vec4(vColor, 1.0);
+  }
+`;
+
 
 // ============================ Shader & Texture Utilities ============================
 function loadShader(gl, type, source) {
@@ -159,6 +183,75 @@ function createCubeGeometry(width, height, depth, checkSize = 1.0) {
     ]);
 }
 
+// [NEW] Creates a cube with vertex color data instead of texture coordinates
+function createColoredCubeGeometry(width, height, depth, faceColors) {
+    const w = width / 2, h = height / 2, d = depth / 2;
+    const { front, back, top, bottom, right, left } = faceColors;
+
+    const vertices = [
+        // x,  y,  z,   r,    g,    b
+        // Front face
+        -w, -h,  d,  ...front,   w, -h,  d,  ...front,   w,  h,  d,  ...front,
+        -w, -h,  d,  ...front,   w,  h,  d,  ...front,  -w,  h,  d,  ...front,
+        // Back face
+        -w, -h, -d,  ...back,   -w,  h, -d,  ...back,    w,  h, -d,  ...back,
+        -w, -h, -d,  ...back,    w,  h, -d,  ...back,    w, -h, -d,  ...back,
+        // Top face
+        -w,  h, -d,  ...top,    -w,  h,  d,  ...top,     w,  h,  d,  ...top,
+        -w,  h, -d,  ...top,     w,  h,  d,  ...top,     w,  h, -d,  ...top,
+        // Bottom face
+        -w, -h, -d,  ...bottom,  w, -h, -d,  ...bottom,  w, -h,  d,  ...bottom,
+        -w, -h, -d,  ...bottom,  w, -h,  d,  ...bottom, -w, -h,  d,  ...bottom,
+        // Right face
+         w, -h, -d,  ...right,   w,  h, -d,  ...right,   w,  h,  d,  ...right,
+         w, -h, -d,  ...right,   w,  h,  d,  ...right,   w, -h,  d,  ...right,
+        // Left face
+        -w, -h, -d,  ...left,   -w, -h,  d,  ...left,   -w,  h,  d,  ...left,
+        -w, -h, -d,  ...left,   -w,  h,  d,  ...left,   -w,  h, -d,  ...left
+    ];
+    return new Float32Array(vertices);
+}
+
+
+// [MODIFIED] Creates a car-like shape using colored cubes
+function createCarGeometry() {
+    const carColors = {
+        top:    [1.0, 0.2, 0.2], // Lighter red
+        side:   [0.8, 0.0, 0.0], // Main red
+        front:  [0.6, 0.0, 0.0], // Darker red
+        bottom: [0.2, 0.0, 0.0], // Very dark red
+    };
+
+    const chassisFaceColors = {
+        front: carColors.front, back: carColors.front,
+        top: carColors.top, bottom: carColors.bottom,
+        right: carColors.side, left: carColors.side
+    };
+
+    const cabinFaceColors = {
+        front: carColors.front, back: carColors.front,
+        top: carColors.top, bottom: carColors.top, // Bottom of cabin is top of chassis
+        right: carColors.side, left: carColors.side
+    };
+
+    const chassisVerts = createColoredCubeGeometry(1.0, 0.3, 2.0, chassisFaceColors);
+    for (let i = 0; i < chassisVerts.length; i += 6) {
+        chassisVerts[i+1] -= 0.15;
+    }
+    
+    const cabinVerts = createColoredCubeGeometry(0.8, 0.4, 1.0, cabinFaceColors);
+    for (let i = 0; i < cabinVerts.length; i += 6) {
+        cabinVerts[i+1] += 0.2;
+        cabinVerts[i+2] += 0.2;
+    }
+    
+    const combinedVerts = new Float32Array(chassisVerts.length + cabinVerts.length);
+    combinedVerts.set(chassisVerts, 0);
+    combinedVerts.set(cabinVerts, chassisVerts.length);
+
+    return combinedVerts;
+}
+
 function buildTrackGeometry(platforms) {
     const allVerts = [];
     const checkSize = 0.6; 
@@ -178,15 +271,16 @@ function buildTrackGeometry(platforms) {
 }
 
 // ============================ Global Variables ============================
-let gl, shaderProgram;
-let attribLocations, uniformLocations;
+let gl;
+let shaderProgramTexture, shaderProgramColor;
+let locationsTexture, locationsColor;
 let buffers = {};
 let textures = {};
 let trackData, geometry;
 let carPos, carVelocity, cameraTarget, cameraSway = 0;
 let score = 0;
-let gameState = 'playing'; // Can be 'playing' or 'paused'
-let controlStyle = 'inverted'; // 'inverted' = Dynamic Camera, 'normal' = Static Camera
+let gameState = 'playing';
+let controlStyle = 'inverted';
 let lastFrameTime = 0;
 const keysDown = {};
 const GRAVITY = 25.0, FORWARD_SPEED = 25.0, STRAFE_SPEED = 15.0, JUMP_STRENGTH = 10.0;
@@ -208,21 +302,36 @@ function init() {
   gl = canvas.getContext("webgl");
   if (!gl) { alert("WebGL not supported."); return; }
 
-  shaderProgram = initShaderProgram(gl, vsSource, fsSource);
-  attribLocations = {
-    aPosition: gl.getAttribLocation(shaderProgram, "aPosition"),
-    aTexCoord: gl.getAttribLocation(shaderProgram, "aTexCoord")
+  // [MODIFIED] Initialize two separate shader programs
+  shaderProgramTexture = initShaderProgram(gl, vsSourceTexture, fsSourceTexture);
+  shaderProgramColor = initShaderProgram(gl, vsSourceColor, fsSourceColor);
+  
+  locationsTexture = {
+    attribs: {
+        aPosition: gl.getAttribLocation(shaderProgramTexture, "aPosition"),
+        aTexCoord: gl.getAttribLocation(shaderProgramTexture, "aTexCoord")
+    },
+    uniforms: {
+        uProjection: gl.getUniformLocation(shaderProgramTexture, "uProjection"),
+        uView: gl.getUniformLocation(shaderProgramTexture, "uView"),
+        uModel: gl.getUniformLocation(shaderProgramTexture, "uModel"),
+        uTexture: gl.getUniformLocation(shaderProgramTexture, "uTexture")
+    }
   };
-  uniformLocations = {
-    uProjection: gl.getUniformLocation(shaderProgram, "uProjection"),
-    uView: gl.getUniformLocation(shaderProgram, "uView"),
-    uModel: gl.getUniformLocation(shaderProgram, "uModel"),
-    uTexture: gl.getUniformLocation(shaderProgram, "uTexture")
+  locationsColor = {
+    attribs: {
+        aPosition: gl.getAttribLocation(shaderProgramColor, "aPosition"),
+        aColor: gl.getAttribLocation(shaderProgramColor, "aColor")
+    },
+    uniforms: {
+        uProjection: gl.getUniformLocation(shaderProgramColor, "uProjection"),
+        uView: gl.getUniformLocation(shaderProgramColor, "uView"),
+        uModel: gl.getUniformLocation(shaderProgramColor, "uModel")
+    }
   };
     
   textures.track = createCheckerboardTexture(gl);
-  textures.car = createSolidColorTexture(gl, 255, 0, 0);
-
+  
   trackData = createTrack(100, 12345); 
   geometry = buildTrackGeometry(trackData);
   initBuffers();
@@ -240,16 +349,26 @@ function init() {
 function initBuffers() {
   if (buffers.track) gl.deleteBuffer(buffers.track.buffer);
   if (buffers.car) gl.deleteBuffer(buffers.car.buffer);
-  buffers.track = initBuffer(geometry);
-  buffers.car = initBuffer(createCubeGeometry(1.0, 0.6, 2.0)); 
+  
+  const trackVerts = buildTrackGeometry(trackData);
+  buffers.track = {
+    buffer: initBuffer(trackVerts),
+    vertexCount: trackVerts.length / 5 // 5 components per vertex (x,y,z,u,v)
+  };
+  
+  const carVerts = createCarGeometry();
+  buffers.car = {
+    buffer: initBuffer(carVerts),
+    vertexCount: carVerts.length / 6 // 6 components per vertex (x,y,z,r,g,b)
+  };
 }
 
 function initBuffer(dataArray) {
-  if (!dataArray || dataArray.length === 0) return { buffer: null, vertexCount: 0 };
+  if (!dataArray || dataArray.length === 0) return null;
   const buffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
   gl.bufferData(gl.ARRAY_BUFFER, dataArray, gl.STATIC_DRAW);
-  return { buffer: buffer, vertexCount: dataArray.length / 5 };
+  return buffer;
 }
 
 // ============================ Event Listeners & Game State ============================
@@ -261,7 +380,6 @@ function toggleHelpMenu() {
     } else if (gameState === 'paused') {
         gameState = 'playing';
         menu.classList.add('hidden');
-        // Reset lastFrameTime to prevent a large deltaTime jump after unpausing
         lastFrameTime = performance.now();
     }
 }
@@ -277,7 +395,6 @@ function setupEventListeners() {
     });
     window.addEventListener("keyup",   e => { keysDown[e.key.toLowerCase()] = false; });
 
-    // [NEW] Add listeners for the new help buttons
     document.getElementById('help-toggle-button').addEventListener('click', toggleHelpMenu);
     document.getElementById('close-help-btn').addEventListener('click', toggleHelpMenu);
 
@@ -286,14 +403,14 @@ function setupEventListeners() {
     const cameraDesc = document.getElementById('camera-desc');
 
     btnInverted.addEventListener('click', () => {
-        controlStyle = 'inverted'; // Dynamic Camera
+        controlStyle = 'inverted';
         btnInverted.classList.add('active');
         btnNormal.classList.remove('active');
         cameraDesc.textContent = "Camera swings out during turns.";
     });
 
     btnNormal.addEventListener('click', () => {
-        controlStyle = 'normal'; // Static Camera
+        controlStyle = 'normal';
         btnNormal.classList.add('active');
         btnInverted.classList.remove('active');
         cameraDesc.textContent = "Camera remains fixed behind the car.";
@@ -306,7 +423,7 @@ function render(now) {
   requestAnimationFrame(render);
 
   if (gameState === 'paused') {
-      return; // Skip game logic and rendering when paused
+      return;
   }
 
   const deltaTime = Math.min(0.1, (now - lastFrameTime) / 1000.0);
@@ -332,21 +449,15 @@ function updateCar(deltaTime) {
         }
     }
     
-    // --- Inverted Steering Controls ---
     let strafe = 0;
-    if (keysDown['a'] || keysDown['arrowleft']) strafe = 1;      // Steer right
-    else if (keysDown['d'] || keysDown['arrowright']) strafe = -1; // Steer left
+    if (keysDown['a'] || keysDown['arrowleft']) strafe = 1;
+    else if (keysDown['d'] || keysDown['arrowright']) strafe = -1;
     
-    // --- Update Camera Sway based on steering and style ---
     let targetSway = 0;
-    if (controlStyle === 'inverted') { // 'inverted' is now the Dynamic camera
-        // Camera swings in opposite direction of steer.
-        // Steer left (strafe -1) -> camera moves right (sway +4)
+    if (controlStyle === 'inverted') {
         targetSway = -strafe * 4.0;
     }
-    // Smoothly interpolate the camera sway for a fluid motion
     cameraSway = lerp(cameraSway, targetSway, 5.0 * deltaTime);
-
 
     if (keysDown[' '] && onGround) {
         carVelocity[1] = JUMP_STRENGTH;
@@ -371,53 +482,75 @@ function updateCar(deltaTime) {
     }
 }
 
+// [MODIFIED] Manages drawing with two different shaders
 function drawScene() {
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.useProgram(shaderProgram);
 
     const projectionMatrix = mat4.create();
     mat4.perspective(projectionMatrix, toRadian(75), gl.canvas.width / gl.canvas.height, 0.1, 1000.0);
-    gl.uniformMatrix4fv(uniformLocations.uProjection, false, projectionMatrix);
 
     const viewMatrix = mat4.create();
-    // --- Use cameraSway to create a dynamic camera offset ---
     const cameraOffset = vec3.fromValues(cameraSway, 5, -10); 
     const cameraPos = vec3.create();
     vec3.add(cameraPos, carPos, cameraOffset);
     vec3.lerp(cameraTarget, cameraTarget, carPos, 0.1);
     mat4.lookAt(viewMatrix, cameraPos, cameraTarget, [0, 1, 0]);
-    gl.uniformMatrix4fv(uniformLocations.uView, false, viewMatrix);
 
+    // Draw the track using the texture shader
     const trackModelMatrix = mat4.create();
-    drawObject(buffers.track, textures.track, trackModelMatrix);
+    drawTexturedObject(buffers.track, textures.track, trackModelMatrix, projectionMatrix, viewMatrix);
 
+    // Draw the car using the color shader
     const carModelMatrix = mat4.create();
     mat4.translate(carModelMatrix, carModelMatrix, carPos);
-    drawObject(buffers.car, textures.car, carModelMatrix);
+    drawColoredObject(buffers.car, carModelMatrix, projectionMatrix, viewMatrix);
 }
 
-function drawObject(bufferObj, texture, modelMatrix) {
+// [MODIFIED] Renamed from drawObject, specifically for textured geometry
+function drawTexturedObject(bufferObj, texture, modelMatrix, projectionMatrix, viewMatrix) {
     if (!bufferObj || !bufferObj.buffer || bufferObj.vertexCount === 0) return;
     
-    const stride = 5 * Float32Array.BYTES_PER_ELEMENT;
-    const positionOffset = 0;
-    const texCoordOffset = 3 * Float32Array.BYTES_PER_ELEMENT;
+    gl.useProgram(shaderProgramTexture);
 
+    const stride = 5 * Float32Array.BYTES_PER_ELEMENT;
     gl.bindBuffer(gl.ARRAY_BUFFER, bufferObj.buffer);
-    gl.vertexAttribPointer(attribLocations.aPosition, 3, gl.FLOAT, false, stride, positionOffset);
-    gl.enableVertexAttribArray(attribLocations.aPosition);
-    gl.vertexAttribPointer(attribLocations.aTexCoord, 2, gl.FLOAT, false, stride, texCoordOffset);
-    gl.enableVertexAttribArray(attribLocations.aTexCoord);
+    gl.vertexAttribPointer(locationsTexture.attribs.aPosition, 3, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(locationsTexture.attribs.aPosition);
+    gl.vertexAttribPointer(locationsTexture.attribs.aTexCoord, 2, gl.FLOAT, false, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
+    gl.enableVertexAttribArray(locationsTexture.attribs.aTexCoord);
     
-    gl.uniformMatrix4fv(uniformLocations.uModel, false, modelMatrix);
+    gl.uniformMatrix4fv(locationsTexture.uniforms.uProjection, false, projectionMatrix);
+    gl.uniformMatrix4fv(locationsTexture.uniforms.uView, false, viewMatrix);
+    gl.uniformMatrix4fv(locationsTexture.uniforms.uModel, false, modelMatrix);
     
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.uniform1i(uniformLocations.uTexture, 0);
+    gl.uniform1i(locationsTexture.uniforms.uTexture, 0);
     
     gl.drawArrays(gl.TRIANGLES, 0, bufferObj.vertexCount);
 }
+
+// [NEW] Drawing function for objects with vertex colors
+function drawColoredObject(bufferObj, modelMatrix, projectionMatrix, viewMatrix) {
+    if (!bufferObj || !bufferObj.buffer || bufferObj.vertexCount === 0) return;
+    
+    gl.useProgram(shaderProgramColor);
+
+    const stride = 6 * Float32Array.BYTES_PER_ELEMENT;
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufferObj.buffer);
+    gl.vertexAttribPointer(locationsColor.attribs.aPosition, 3, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(locationsColor.attribs.aPosition);
+    gl.vertexAttribPointer(locationsColor.attribs.aColor, 3, gl.FLOAT, false, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
+    gl.enableVertexAttribArray(locationsColor.attribs.aColor);
+
+    gl.uniformMatrix4fv(locationsColor.uniforms.uProjection, false, projectionMatrix);
+    gl.uniformMatrix4fv(locationsColor.uniforms.uView, false, viewMatrix);
+    gl.uniformMatrix4fv(locationsColor.uniforms.uModel, false, modelMatrix);
+
+    gl.drawArrays(gl.TRIANGLES, 0, bufferObj.vertexCount);
+}
+
 
 // ============================ 2D Overlay / HUD ============================
 function updateHUD() {
@@ -433,8 +566,6 @@ function updateHUD() {
     ctx.font = "bold 32px monospace";
     ctx.textAlign = "left";
     ctx.fillText(`SCORE: ${score}`, 20, 40);
-    
-    // [REMOVED] Redundant help text drawing is no longer needed.
 }
 
 // ============================ Window Load & Resize ============================
