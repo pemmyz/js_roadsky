@@ -254,7 +254,7 @@ function createCarGeometry() {
 
 function buildTrackGeometry(platforms) {
     const allVerts = [];
-    const checkSize = 0.6; 
+    const checkSize = 1.2; 
     for (const p of platforms) {
         const cubeVerts = createCubeGeometry(p.width, p.height, p.depth, checkSize);
         for (let i = 0; i < cubeVerts.length; i += 5) {
