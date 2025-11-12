@@ -7,8 +7,6 @@ function lerp(a, b, t) {
 }
 
 // ============================ Shader Sources ============================
-
-// Shader for textured objects like the track
 const vsSourceTexture = `
   attribute vec3 aPosition;
   attribute vec2 aTexCoord;
@@ -29,8 +27,6 @@ const fsSourceTexture = `
       gl_FragColor = texture2D(uTexture, vTexCoord);
   }
 `;
-
-// [NEW] Shader for solid-colored objects like the car
 const vsSourceColor = `
   attribute vec3 aPosition;
   attribute vec3 aColor;
@@ -50,7 +46,6 @@ const fsSourceColor = `
       gl_FragColor = vec4(vColor, 1.0);
   }
 `;
-
 
 // ============================ Shader & Texture Utilities ============================
 function loadShader(gl, type, source) {
@@ -78,14 +73,6 @@ function initShaderProgram(gl, vsSource, fsSource) {
   return shaderProgram;
 }
 
-function createSolidColorTexture(gl, r, g, b) {
-  const texture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  const pixel = new Uint8Array([r, g, b, 255]);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-  return texture;
-}
-
 function createCheckerboardTexture(gl) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -93,17 +80,13 @@ function createCheckerboardTexture(gl) {
     const checkSize = textureSize / 2;
     canvas.width = textureSize;
     canvas.height = textureSize;
-    
-    const color1 = "#C8C8C8"; // Lighter Grey
-    const color2 = "#969696"; // Grey
-    
+    const color1 = "#C8C8C8"; const color2 = "#969696";
     for (let i = 0; i < 2; i++) {
         for (let j = 0; j < 2; j++) {
             ctx.fillStyle = (i + j) % 2 === 0 ? color1 : color2;
             ctx.fillRect(i * checkSize, j * checkSize, checkSize, checkSize);
         }
     }
-
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
@@ -116,7 +99,8 @@ function createCheckerboardTexture(gl) {
 }
 
 // ============================ Track Generation ============================
-function createTrack(length, seed) {
+// [MODIFIED] Accepts min and max gap distances for platform generation
+function createTrack(length, seed, minGap, maxGap) {
     let rng = Math.random;
     if (seed !== undefined) {
         let m_w = seed;
@@ -141,8 +125,7 @@ function createTrack(length, seed) {
     let lastPlatformBackEdge = startDepth;
 
     for (let i = 0; i < length; i++) {
-        const minGap = 1.0;
-        const maxGap = 1.8; 
+        // Use provided min/max gap values
         const gap = rng() * (maxGap - minGap) + minGap;
 
         const width = rng() * 8 + 4;
@@ -167,88 +150,28 @@ function createTrack(length, seed) {
 // ============================ Geometry Generation ============================
 function createCubeGeometry(width, height, depth, checkSize = 1.0) {
     const w = width / 2, h = height / 2, d = depth / 2;
-    const uMaxW = width / checkSize;
-    const uMaxD = depth / checkSize;
-    const vMaxH = height / checkSize;
-    const vMaxD = depth / checkSize;
-
-    return new Float32Array([
-        // x, y, z, u, v
-        -w, -h, d, 0, 0,       w, -h, d, uMaxW, 0,       w, h, d, uMaxW, vMaxH,  -w, -h, d, 0, 0,       w, h, d, uMaxW, vMaxH,  -w, h, d, 0, vMaxH, // Front
-        -w, -h, -d, uMaxW, 0,  -w, h, -d, uMaxW, vMaxH,  w, h, -d, 0, vMaxH,      -w, -h, -d, uMaxW, 0,  w, h, -d, 0, vMaxH,      w, -h, -d, 0, 0, // Back
-        -w, h, -d, 0, vMaxD,   -w, h, d, 0, 0,          w, h, d, uMaxW, 0,        -w, h, -d, 0, vMaxD,   w, h, d, uMaxW, 0,        w, h, -d, uMaxW, vMaxD, // Top
-        -w, -h, -d, 0, 0,      w, -h, -d, uMaxW, 0,      w, -h, d, uMaxW, vMaxD,  -w, -h, -d, 0, 0,      w, -h, d, uMaxW, vMaxD,  -w, -h, d, 0, vMaxD, // Bottom
-        w, -h, -d, uMaxD, 0,   w, h, -d, uMaxD, vMaxH,   w, h, d, 0, vMaxH,       w, -h, -d, uMaxD, 0,   w, h, d, 0, vMaxH,       w, -h, d, 0, 0, // Right
-        -w, -h, -d, 0, 0,      -w, -h, d, uMaxD, 0,      -w, h, d, uMaxD, vMaxH,  -w, -h, -d, 0, 0,      -w, h, d, uMaxD, vMaxH,  -w, h, -d, uMaxD, vMaxH, // Left
-    ]);
+    const uMaxW = width / checkSize; const uMaxD = depth / checkSize;
+    const vMaxH = height / checkSize; const vMaxD = depth / checkSize;
+    return new Float32Array([ -w, -h, d, 0, 0, w, -h, d, uMaxW, 0, w, h, d, uMaxW, vMaxH, -w, -h, d, 0, 0, w, h, d, uMaxW, vMaxH, -w, h, d, 0, vMaxH, -w, -h, -d, uMaxW, 0, -w, h, -d, uMaxW, vMaxH, w, h, -d, 0, vMaxH, -w, -h, -d, uMaxW, 0, w, h, -d, 0, vMaxH, w, -h, -d, 0, 0, -w, h, -d, 0, vMaxD, -w, h, d, 0, 0, w, h, d, uMaxW, 0, -w, h, -d, 0, vMaxD, w, h, d, uMaxW, 0, w, h, -d, uMaxW, vMaxD, -w, -h, -d, 0, 0, w, -h, -d, uMaxW, 0, w, -h, d, uMaxW, vMaxD, -w, -h, -d, 0, 0, w, -h, d, uMaxW, vMaxD, -w, -h, d, 0, vMaxD, w, -h, -d, uMaxD, 0, w, h, -d, uMaxD, vMaxH, w, h, d, 0, vMaxH, w, -h, -d, uMaxD, 0, w, h, d, 0, vMaxH, w, -h, d, 0, 0, -w, -h, -d, 0, 0, -w, -h, d, uMaxD, 0, -w, h, d, uMaxD, vMaxH, -w, -h, -d, 0, 0, -w, h, d, uMaxD, vMaxH, -w, h, -d, uMaxD, vMaxH ]);
 }
 
-// [NEW] Creates a cube with vertex color data instead of texture coordinates
 function createColoredCubeGeometry(width, height, depth, faceColors) {
     const w = width / 2, h = height / 2, d = depth / 2;
     const { front, back, top, bottom, right, left } = faceColors;
-
-    const vertices = [
-        // x,  y,  z,   r,    g,    b
-        // Front face
-        -w, -h,  d,  ...front,   w, -h,  d,  ...front,   w,  h,  d,  ...front,
-        -w, -h,  d,  ...front,   w,  h,  d,  ...front,  -w,  h,  d,  ...front,
-        // Back face
-        -w, -h, -d,  ...back,   -w,  h, -d,  ...back,    w,  h, -d,  ...back,
-        -w, -h, -d,  ...back,    w,  h, -d,  ...back,    w, -h, -d,  ...back,
-        // Top face
-        -w,  h, -d,  ...top,    -w,  h,  d,  ...top,     w,  h,  d,  ...top,
-        -w,  h, -d,  ...top,     w,  h,  d,  ...top,     w,  h, -d,  ...top,
-        // Bottom face
-        -w, -h, -d,  ...bottom,  w, -h, -d,  ...bottom,  w, -h,  d,  ...bottom,
-        -w, -h, -d,  ...bottom,  w, -h,  d,  ...bottom, -w, -h,  d,  ...bottom,
-        // Right face
-         w, -h, -d,  ...right,   w,  h, -d,  ...right,   w,  h,  d,  ...right,
-         w, -h, -d,  ...right,   w,  h,  d,  ...right,   w, -h,  d,  ...right,
-        // Left face
-        -w, -h, -d,  ...left,   -w, -h,  d,  ...left,   -w,  h,  d,  ...left,
-        -w, -h, -d,  ...left,   -w,  h,  d,  ...left,   -w,  h, -d,  ...left
-    ];
-    return new Float32Array(vertices);
+    return new Float32Array([ -w, -h, d, ...front, w, -h, d, ...front, w, h, d, ...front, -w, -h, d, ...front, w, h, d, ...front, -w, h, d, ...front, -w, -h, -d, ...back, -w, h, -d, ...back, w, h, -d, ...back, -w, -h, -d, ...back, w, h, -d, ...back, w, -h, -d, ...back, -w, h, -d, ...top, -w, h, d, ...top, w, h, d, ...top, -w, h, -d, ...top, w, h, d, ...top, w, h, -d, ...top, -w, -h, -d, ...bottom, w, -h, -d, ...bottom, w, -h, d, ...bottom, -w, -h, -d, ...bottom, w, -h, d, ...bottom, -w, -h, d, ...bottom, w, -h, -d, ...right, w, h, -d, ...right, w, h, d, ...right, w, -h, -d, ...right, w, h, d, ...right, w, -h, d, ...right, -w, -h, -d, ...left, -w, -h, d, ...left, -w, h, d, ...left, -w, -h, -d, ...left, -w, h, d, ...left, -w, h, -d, ...left ]);
 }
 
-
-// [MODIFIED] Creates a car-like shape using colored cubes
 function createCarGeometry() {
-    const carColors = {
-        top:    [1.0, 0.2, 0.2], // Lighter red
-        side:   [0.8, 0.0, 0.0], // Main red
-        front:  [0.6, 0.0, 0.0], // Darker red
-        bottom: [0.2, 0.0, 0.0], // Very dark red
-    };
-
-    const chassisFaceColors = {
-        front: carColors.front, back: carColors.front,
-        top: carColors.top, bottom: carColors.bottom,
-        right: carColors.side, left: carColors.side
-    };
-
-    const cabinFaceColors = {
-        front: carColors.front, back: carColors.front,
-        top: carColors.top, bottom: carColors.top, // Bottom of cabin is top of chassis
-        right: carColors.side, left: carColors.side
-    };
-
+    const carColors = { top: [1.0, 0.2, 0.2], side: [0.8, 0.0, 0.0], front: [0.6, 0.0, 0.0], bottom: [0.2, 0.0, 0.0] };
+    const chassisFaceColors = { front: carColors.front, back: carColors.front, top: carColors.top, bottom: carColors.bottom, right: carColors.side, left: carColors.side };
+    const cabinFaceColors = { front: carColors.front, back: carColors.front, top: carColors.top, bottom: carColors.top, right: carColors.side, left: carColors.side };
     const chassisVerts = createColoredCubeGeometry(1.0, 0.3, 2.0, chassisFaceColors);
-    for (let i = 0; i < chassisVerts.length; i += 6) {
-        chassisVerts[i+1] -= 0.15;
-    }
-    
+    for (let i = 0; i < chassisVerts.length; i += 6) { chassisVerts[i+1] -= 0.15; }
     const cabinVerts = createColoredCubeGeometry(0.8, 0.4, 1.0, cabinFaceColors);
-    for (let i = 0; i < cabinVerts.length; i += 6) {
-        cabinVerts[i+1] += 0.2;
-        cabinVerts[i+2] += 0.2;
-    }
-    
+    for (let i = 0; i < cabinVerts.length; i += 6) { cabinVerts[i+1] += 0.2; cabinVerts[i+2] += 0.2; }
     const combinedVerts = new Float32Array(chassisVerts.length + cabinVerts.length);
     combinedVerts.set(chassisVerts, 0);
     combinedVerts.set(cabinVerts, chassisVerts.length);
-
     return combinedVerts;
 }
 
@@ -258,13 +181,7 @@ function buildTrackGeometry(platforms) {
     for (const p of platforms) {
         const cubeVerts = createCubeGeometry(p.width, p.height, p.depth, checkSize);
         for (let i = 0; i < cubeVerts.length; i += 5) {
-            allVerts.push(
-                cubeVerts[i] + p.x,
-                cubeVerts[i+1] + p.y,
-                cubeVerts[i+2] + p.z,
-                cubeVerts[i+3],
-                cubeVerts[i+4]
-            );
+            allVerts.push(cubeVerts[i] + p.x, cubeVerts[i+1] + p.y, cubeVerts[i+2] + p.z, cubeVerts[i+3], cubeVerts[i+4] );
         }
     }
     return new Float32Array(allVerts);
@@ -276,7 +193,7 @@ let shaderProgramTexture, shaderProgramColor;
 let locationsTexture, locationsColor;
 let buffers = {};
 let textures = {};
-let trackData, geometry;
+let trackData;
 let carPos, carVelocity, cameraTarget, cameraSway = 0;
 let score = 0;
 let gameState = 'playing';
@@ -285,8 +202,12 @@ let lastFrameTime = 0;
 const keysDown = {};
 const GRAVITY = 25.0, FORWARD_SPEED = 25.0, STRAFE_SPEED = 15.0, JUMP_STRENGTH = 10.0;
 
+// [NEW] Global variables for track generation settings
+let trackMinGap = 1.8;
+let trackMaxGap = 5.0;
+
 function respawnPlayer() {
-    console.log("Player fell, respawning...");
+    console.log("Player respawning...");
     vec3.set(carPos, 0, 2, 5);
     vec3.set(carVelocity, 0, 0, 0);
 }
@@ -302,38 +223,22 @@ function init() {
   gl = canvas.getContext("webgl");
   if (!gl) { alert("WebGL not supported."); return; }
 
-  // [MODIFIED] Initialize two separate shader programs
   shaderProgramTexture = initShaderProgram(gl, vsSourceTexture, fsSourceTexture);
   shaderProgramColor = initShaderProgram(gl, vsSourceColor, fsSourceColor);
   
   locationsTexture = {
-    attribs: {
-        aPosition: gl.getAttribLocation(shaderProgramTexture, "aPosition"),
-        aTexCoord: gl.getAttribLocation(shaderProgramTexture, "aTexCoord")
-    },
-    uniforms: {
-        uProjection: gl.getUniformLocation(shaderProgramTexture, "uProjection"),
-        uView: gl.getUniformLocation(shaderProgramTexture, "uView"),
-        uModel: gl.getUniformLocation(shaderProgramTexture, "uModel"),
-        uTexture: gl.getUniformLocation(shaderProgramTexture, "uTexture")
-    }
+    attribs: { aPosition: gl.getAttribLocation(shaderProgramTexture, "aPosition"), aTexCoord: gl.getAttribLocation(shaderProgramTexture, "aTexCoord") },
+    uniforms: { uProjection: gl.getUniformLocation(shaderProgramTexture, "uProjection"), uView: gl.getUniformLocation(shaderProgramTexture, "uView"), uModel: gl.getUniformLocation(shaderProgramTexture, "uModel"), uTexture: gl.getUniformLocation(shaderProgramTexture, "uTexture") }
   };
   locationsColor = {
-    attribs: {
-        aPosition: gl.getAttribLocation(shaderProgramColor, "aPosition"),
-        aColor: gl.getAttribLocation(shaderProgramColor, "aColor")
-    },
-    uniforms: {
-        uProjection: gl.getUniformLocation(shaderProgramColor, "uProjection"),
-        uView: gl.getUniformLocation(shaderProgramColor, "uView"),
-        uModel: gl.getUniformLocation(shaderProgramColor, "uModel")
-    }
+    attribs: { aPosition: gl.getAttribLocation(shaderProgramColor, "aPosition"), aColor: gl.getAttribLocation(shaderProgramColor, "aColor") },
+    uniforms: { uProjection: gl.getUniformLocation(shaderProgramColor, "uProjection"), uView: gl.getUniformLocation(shaderProgramColor, "uView"), uModel: gl.getUniformLocation(shaderProgramColor, "uModel") }
   };
     
   textures.track = createCheckerboardTexture(gl);
   
-  trackData = createTrack(100, 12345); 
-  geometry = buildTrackGeometry(trackData);
+  // [MODIFIED] Initial track generation uses the new global settings
+  trackData = createTrack(100, 12345, trackMinGap, trackMaxGap); 
   initBuffers();
   
   gl.clearColor(0.20, 0.28, 0.34, 1.0);
@@ -351,16 +256,10 @@ function initBuffers() {
   if (buffers.car) gl.deleteBuffer(buffers.car.buffer);
   
   const trackVerts = buildTrackGeometry(trackData);
-  buffers.track = {
-    buffer: initBuffer(trackVerts),
-    vertexCount: trackVerts.length / 5 // 5 components per vertex (x,y,z,u,v)
-  };
+  buffers.track = { buffer: initBuffer(trackVerts), vertexCount: trackVerts.length / 5 };
   
   const carVerts = createCarGeometry();
-  buffers.car = {
-    buffer: initBuffer(carVerts),
-    vertexCount: carVerts.length / 6 // 6 components per vertex (x,y,z,r,g,b)
-  };
+  buffers.car = { buffer: initBuffer(carVerts), vertexCount: carVerts.length / 6 };
 }
 
 function initBuffer(dataArray) {
@@ -401,19 +300,58 @@ function setupEventListeners() {
     const btnInverted = document.getElementById('controlsInverted');
     const btnNormal = document.getElementById('controlsNormal');
     const cameraDesc = document.getElementById('camera-desc');
+    btnInverted.addEventListener('click', () => { controlStyle = 'inverted'; btnInverted.classList.add('active'); btnNormal.classList.remove('active'); cameraDesc.textContent = "Camera swings out during turns."; });
+    btnNormal.addEventListener('click', () => { controlStyle = 'normal'; btnNormal.classList.add('active'); btnInverted.classList.remove('active'); cameraDesc.textContent = "Camera remains fixed behind the car."; });
+    
+    // [NEW] Event listeners for track generation controls
+    const minDistSlider = document.getElementById('min-dist-slider');
+    const minDistValue = document.getElementById('min-dist-value');
+    const maxDistSlider = document.getElementById('max-dist-slider');
+    const maxDistValue = document.getElementById('max-dist-value');
+    const resetMapBtn = document.getElementById('reset-map-btn');
 
-    btnInverted.addEventListener('click', () => {
-        controlStyle = 'inverted';
-        btnInverted.classList.add('active');
-        btnNormal.classList.remove('active');
-        cameraDesc.textContent = "Camera swings out during turns.";
+    // Initialize UI from globals
+    minDistSlider.value = trackMinGap;
+    minDistValue.textContent = trackMinGap.toFixed(1);
+    maxDistSlider.value = trackMaxGap;
+    maxDistValue.textContent = trackMaxGap.toFixed(1);
+
+    minDistSlider.addEventListener('input', (e) => {
+        let minVal = parseFloat(e.target.value);
+        if (minVal > trackMaxGap) {
+            trackMaxGap = minVal;
+            maxDistSlider.value = trackMaxGap;
+            maxDistValue.textContent = trackMaxGap.toFixed(1);
+        }
+        trackMinGap = minVal;
+        minDistValue.textContent = trackMinGap.toFixed(1);
     });
 
-    btnNormal.addEventListener('click', () => {
-        controlStyle = 'normal';
-        btnNormal.classList.add('active');
-        btnInverted.classList.remove('active');
-        cameraDesc.textContent = "Camera remains fixed behind the car.";
+    maxDistSlider.addEventListener('input', (e) => {
+        let maxVal = parseFloat(e.target.value);
+        if (maxVal < trackMinGap) {
+            trackMinGap = maxVal;
+            minDistSlider.value = trackMinGap;
+            minDistValue.textContent = trackMinGap.toFixed(1);
+        }
+        trackMaxGap = maxVal;
+        maxDistValue.textContent = trackMaxGap.toFixed(1);
+    });
+
+    resetMapBtn.addEventListener('click', () => {
+        console.log(`Creating new map with distances: [${trackMinGap}, ${trackMaxGap}]`);
+        // Create a new randomized track using current slider settings
+        trackData = createTrack(100, undefined, trackMinGap, trackMaxGap);
+        
+        // Rebuild the WebGL geometry buffers with the new track data
+        initBuffers();
+        
+        // Move player to the start and reset score
+        respawnPlayer();
+        score = 0;
+        
+        // Close the help menu and resume the game
+        toggleHelpMenu();
     });
 }
 
@@ -453,36 +391,18 @@ function updateCar(deltaTime) {
     if (keysDown['a'] || keysDown['arrowleft']) strafe = 1;
     else if (keysDown['d'] || keysDown['arrowright']) strafe = -1;
     
-    let targetSway = 0;
-    if (controlStyle === 'inverted') {
-        targetSway = -strafe * 4.0;
-    }
+    let targetSway = (controlStyle === 'inverted') ? -strafe * 4.0 : 0;
     cameraSway = lerp(cameraSway, targetSway, 5.0 * deltaTime);
 
-    if (keysDown[' '] && onGround) {
-        carVelocity[1] = JUMP_STRENGTH;
-    }
-
-    let forwardSpeed = 0;
-    if (keysDown['w'] || keysDown['arrowup']) {
-        forwardSpeed = FORWARD_SPEED;
-    }
+    if (keysDown[' '] && onGround) carVelocity[1] = JUMP_STRENGTH;
     
     carVelocity[0] = strafe * STRAFE_SPEED;
-    carVelocity[2] = forwardSpeed;
-
-    if (!onGround) {
-        carVelocity[1] -= GRAVITY * deltaTime;
-    }
-
+    carVelocity[2] = (keysDown['w'] || keysDown['arrowup']) ? FORWARD_SPEED : 0;
+    if (!onGround) carVelocity[1] -= GRAVITY * deltaTime;
     vec3.scaleAndAdd(carPos, carPos, carVelocity, deltaTime);
-
-    if (carPos[1] < -20) {
-        respawnPlayer();
-    }
+    if (carPos[1] < -20) respawnPlayer();
 }
 
-// [MODIFIED] Manages drawing with two different shaders
 function drawScene() {
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -497,60 +417,46 @@ function drawScene() {
     vec3.lerp(cameraTarget, cameraTarget, carPos, 0.1);
     mat4.lookAt(viewMatrix, cameraPos, cameraTarget, [0, 1, 0]);
 
-    // Draw the track using the texture shader
     const trackModelMatrix = mat4.create();
     drawTexturedObject(buffers.track, textures.track, trackModelMatrix, projectionMatrix, viewMatrix);
 
-    // Draw the car using the color shader
     const carModelMatrix = mat4.create();
     mat4.translate(carModelMatrix, carModelMatrix, carPos);
     drawColoredObject(buffers.car, carModelMatrix, projectionMatrix, viewMatrix);
 }
 
-// [MODIFIED] Renamed from drawObject, specifically for textured geometry
 function drawTexturedObject(bufferObj, texture, modelMatrix, projectionMatrix, viewMatrix) {
     if (!bufferObj || !bufferObj.buffer || bufferObj.vertexCount === 0) return;
-    
     gl.useProgram(shaderProgramTexture);
-
     const stride = 5 * Float32Array.BYTES_PER_ELEMENT;
     gl.bindBuffer(gl.ARRAY_BUFFER, bufferObj.buffer);
     gl.vertexAttribPointer(locationsTexture.attribs.aPosition, 3, gl.FLOAT, false, stride, 0);
     gl.enableVertexAttribArray(locationsTexture.attribs.aPosition);
     gl.vertexAttribPointer(locationsTexture.attribs.aTexCoord, 2, gl.FLOAT, false, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
     gl.enableVertexAttribArray(locationsTexture.attribs.aTexCoord);
-    
     gl.uniformMatrix4fv(locationsTexture.uniforms.uProjection, false, projectionMatrix);
     gl.uniformMatrix4fv(locationsTexture.uniforms.uView, false, viewMatrix);
     gl.uniformMatrix4fv(locationsTexture.uniforms.uModel, false, modelMatrix);
-    
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.uniform1i(locationsTexture.uniforms.uTexture, 0);
-    
     gl.drawArrays(gl.TRIANGLES, 0, bufferObj.vertexCount);
 }
 
-// [NEW] Drawing function for objects with vertex colors
 function drawColoredObject(bufferObj, modelMatrix, projectionMatrix, viewMatrix) {
     if (!bufferObj || !bufferObj.buffer || bufferObj.vertexCount === 0) return;
-    
     gl.useProgram(shaderProgramColor);
-
     const stride = 6 * Float32Array.BYTES_PER_ELEMENT;
     gl.bindBuffer(gl.ARRAY_BUFFER, bufferObj.buffer);
     gl.vertexAttribPointer(locationsColor.attribs.aPosition, 3, gl.FLOAT, false, stride, 0);
     gl.enableVertexAttribArray(locationsColor.attribs.aPosition);
     gl.vertexAttribPointer(locationsColor.attribs.aColor, 3, gl.FLOAT, false, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
     gl.enableVertexAttribArray(locationsColor.attribs.aColor);
-
     gl.uniformMatrix4fv(locationsColor.uniforms.uProjection, false, projectionMatrix);
     gl.uniformMatrix4fv(locationsColor.uniforms.uView, false, viewMatrix);
     gl.uniformMatrix4fv(locationsColor.uniforms.uModel, false, modelMatrix);
-
     gl.drawArrays(gl.TRIANGLES, 0, bufferObj.vertexCount);
 }
-
 
 // ============================ 2D Overlay / HUD ============================
 function updateHUD() {
@@ -561,7 +467,6 @@ function updateHUD() {
         overlay.height = window.innerHeight;
     }
     ctx.clearRect(0, 0, overlay.width, overlay.height);
-
     ctx.fillStyle = "white";
     ctx.font = "bold 32px monospace";
     ctx.textAlign = "left";

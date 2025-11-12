@@ -13,7 +13,7 @@
   <canvas id="glCanvas"></canvas>
   <canvas id="hudCanvas"></canvas>
 
-  <!-- [MODIFIED] Help Menu Overlay with README content -->
+  <!-- [MODIFIED] Help Menu with Track Generation Controls -->
   <div id="helpMenu" class="hidden">
     <h2>WebGL Sky Driver 🛫✨ Help</h2>
     
@@ -50,12 +50,30 @@
          Camera swings out during turns.
       </p>
     </div>
+    
+    <!-- [NEW] Track Generation Settings -->
+    <hr>
+    <h3>🗺️ Track Generation</h3>
+    <div class="setting">
+        <div class="slider-container">
+            <label for="min-dist-slider">Min Distance:</label>
+            <input type="range" id="min-dist-slider" min="1.0" max="20.0" step="0.1" value="1.8">
+            <span id="min-dist-value">1.8</span>
+        </div>
+        <div class="slider-container">
+            <label for="max-dist-slider">Max Distance:</label>
+            <input type="range" id="max-dist-slider" min="1.0" max="20.0" step="0.1" value="5.0">
+            <span id="max-dist-value">5.0</span>
+        </div>
+        <button id="reset-map-btn" class="active">Create New Map</button>
+    </div>
+    
     <hr>
     <p>Link to repo: <a href="https://github.com/pemmyz/js_roadsky" target="_blank" rel="noopener noreferrer">https://github.com/pemmyz/js_roadsky</a></p>
     <button id="close-help-btn">Close</button>
   </div>
 
-  <!-- [NEW] Help toggle button in the corner -->
+  <!-- Help toggle button in the corner -->
   <div id="help-toggle-button">Press 'H' for Help</div>
 
   <!-- Your script is loaded last, ensuring the library above is ready first. -->

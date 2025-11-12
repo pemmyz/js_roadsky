@@ -26,7 +26,7 @@ body {
   pointer-events: none; /* HUD doesn't need clicks */
 }
 
-/* [MODIFIED] Help Menu Styles for better readability and scrolling */
+/* Help Menu Styles */
 #helpMenu {
   position: absolute;
   top: 50%;
@@ -81,6 +81,62 @@ body {
     font-style: italic;
 }
 
+/* [NEW] Styles for Track Generation Sliders */
+#helpMenu .slider-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    gap: 10px;
+}
+
+#helpMenu .slider-container label {
+    flex-basis: 120px;
+    text-align: right;
+    font-size: 16px;
+}
+
+#helpMenu input[type="range"] {
+    flex-grow: 1;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    background: #566573;
+    outline: none;
+    border-radius: 4px;
+    transition: opacity .2s;
+}
+#helpMenu input[type="range"]:hover {
+    opacity: 0.9;
+}
+
+#helpMenu input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #ecf0f1;
+    border-radius: 50%;
+    border: 2px solid #bdc3c7;
+}
+
+#helpMenu input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: #ecf0f1;
+    border-radius: 50%;
+    border: 2px solid #bdc3c7;
+}
+
+#helpMenu .slider-container span {
+    flex-basis: 40px;
+    text-align: left;
+    font-weight: bold;
+    color: #ecf0f1;
+}
+
 #helpMenu button {
   padding: 10px 15px;
   background-color: #7f8c8d;
@@ -93,11 +149,18 @@ body {
 }
 #helpMenu button:hover { background-color: #95a5a6; }
 #helpMenu button.active { background-color: #2980b9; border-color: #3498db; font-weight: bold; }
+
+/* [MODIFIED] Reset button has more prominence now */
+#helpMenu #reset-map-btn {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+}
 #helpMenu button#close-help-btn { display: block; margin: 20px auto 0; }
 
 #helpMenu hr { border: 0; border-top: 1px solid #7f8c8d; margin: 1.5em 0; }
 
-/* [NEW] Help toggle button styles */
+/* Help toggle button styles */
 #help-toggle-button {
     position: fixed;
     bottom: 10px;
