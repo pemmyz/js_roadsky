@@ -70,8 +70,9 @@ body {
 #helpMenu a:hover { text-decoration: underline; }
 
 #helpMenu .setting { text-align: center; margin-top: 20px; }
-#helpMenu .setting p { margin-bottom: 10px; font-size: 18px; }
-#helpMenu .options { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+#helpMenu .setting p { margin-top: 20px; margin-bottom: 10px; font-size: 18px; }
+#helpMenu .setting p:first-child { margin-top: 0; }
+#helpMenu .options { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
 
 #helpMenu .setting-desc {
     font-size: 14px;
@@ -80,8 +81,12 @@ body {
     min-height: 2.5em;
     font-style: italic;
 }
+/* [NEW] Add specific margin to the preset description */
+#helpMenu #preset-desc {
+    margin-bottom: 25px;
+}
 
-/* [NEW] Styles for Track Generation Sliders */
+/* Styles for Track Generation Sliders */
 #helpMenu .slider-container {
     display: flex;
     justify-content: space-between;
@@ -99,42 +104,30 @@ body {
 #helpMenu input[type="range"] {
     flex-grow: 1;
     cursor: pointer;
-    -webkit-appearance: none;
-    appearance: none;
-    width: 100%;
-    height: 8px;
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 8px;
     background: #566573;
-    outline: none;
-    border-radius: 4px;
+    outline: none; border-radius: 4px;
     transition: opacity .2s;
 }
-#helpMenu input[type="range"]:hover {
-    opacity: 0.9;
-}
+#helpMenu input[type="range"]:hover { opacity: 0.9; }
 
 #helpMenu input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 20px;
-    height: 20px;
-    background: #ecf0f1;
-    border-radius: 50%;
+    -webkit-appearance: none; appearance: none;
+    width: 20px; height: 20px;
+    background: #ecf0f1; border-radius: 50%;
     border: 2px solid #bdc3c7;
 }
 
 #helpMenu input[type="range"]::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
-    background: #ecf0f1;
-    border-radius: 50%;
+    width: 20px; height: 20px;
+    background: #ecf0f1; border-radius: 50%;
     border: 2px solid #bdc3c7;
 }
 
 #helpMenu .slider-container span {
-    flex-basis: 40px;
-    text-align: left;
-    font-weight: bold;
-    color: #ecf0f1;
+    flex-basis: 40px; text-align: left;
+    font-weight: bold; color: #ecf0f1;
 }
 
 #helpMenu button {
@@ -150,12 +143,15 @@ body {
 #helpMenu button:hover { background-color: #95a5a6; }
 #helpMenu button.active { background-color: #2980b9; border-color: #3498db; font-weight: bold; }
 
-/* [MODIFIED] Reset button has more prominence now */
+/* [MODIFIED] Custom map button has a distinct color */
 #helpMenu #reset-map-btn {
-    display: block;
-    width: 100%;
+    display: block; width: 100%;
     margin-top: 10px;
+    background-color: #16a085; /* Green */
+    border-color: #1abc9c;
 }
+#helpMenu #reset-map-btn:hover { background-color: #1abc9c; }
+
 #helpMenu button#close-help-btn { display: block; margin: 20px auto 0; }
 
 #helpMenu hr { border: 0; border-top: 1px solid #7f8c8d; margin: 1.5em 0; }
@@ -163,19 +159,12 @@ body {
 /* Help toggle button styles */
 #help-toggle-button {
     position: fixed;
-    bottom: 10px;
-    left: 10px;
+    bottom: 10px; left: 10px;
     background-color: rgba(44, 62, 80, 0.8);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 5px;
-    font-size: 14px;
-    cursor: pointer;
-    user-select: none;
-    z-index: 5;
-    transition: background-color 0.2s;
+    color: white; padding: 8px 12px;
+    border-radius: 5px; font-size: 14px;
+    cursor: pointer; user-select: none;
+    z-index: 5; transition: background-color 0.2s;
     border: 1px solid #ecf0f1;
 }
-#help-toggle-button:hover {
-    background-color: rgba(44, 62, 80, 1.0);
-}
+#help-toggle-button:hover { background-color: rgba(44, 62, 80, 1.0); }
