@@ -40,11 +40,11 @@ const GRAVITY = 25.0, FORWARD_SPEED = 25.0, STRAFE_SPEED = 15.0, JUMP_STRENGTH =
 let trackMinGap = 1.8;
 let trackMaxGap = 5.0;
 
-// [NEW] Difficulty preset values
+// [MODIFIED] Difficulty preset values
 const DIFFICULTY_PRESETS = {
     easy:   { min: 6.4, max: 10.5 },
-    medium: { min: 3.5, max: 7.0  },
-    hard:   { min: 1.5, max: 4.5  }
+    medium: { min: 7.4, max: 13.2 },
+    hard:   { min: 11.3, max: 20.0 }
 };
 
 function respawnPlayer() {
