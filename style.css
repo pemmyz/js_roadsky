@@ -26,8 +26,8 @@ body {
   pointer-events: none; /* HUD doesn't need clicks */
 }
 
-/* Help Menu Styles */
-#helpMenu {
+/* [NEW] Shared styles for all menu panels */
+.menu-panel {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -46,48 +46,47 @@ body {
   line-height: 1.6;
 }
 
-#helpMenu.hidden {
+.menu-panel.hidden {
   display: none;
 }
 
-#helpMenu h2, #helpMenu h3 {
+.menu-panel h2, .menu-panel h3 {
   text-align: center;
   margin-top: 1em;
   margin-bottom: 0.5em;
   border-bottom: 1px solid #7f8c8d;
   padding-bottom: 10px;
 }
-#helpMenu h2:first-child { margin-top: 0; }
-#helpMenu h3 { border-bottom: none; }
-#helpMenu ul { list-style-position: inside; padding-left: 10px; }
-#helpMenu li { margin-bottom: 0.5em; }
+.menu-panel h2:first-child { margin-top: 0; }
+.menu-panel h3 { border-bottom: none; }
+.menu-panel ul { list-style-position: inside; padding-left: 10px; }
+.menu-panel li { margin-bottom: 0.5em; }
 
-#helpMenu table { width: 100%; border-collapse: collapse; margin: 1em 0; }
-#helpMenu th, #helpMenu td { border: 1px solid #7f8c8d; padding: 8px; text-align: left; }
-#helpMenu th { background-color: rgba(127, 140, 141, 0.3); }
+.menu-panel table { width: 100%; border-collapse: collapse; margin: 1em 0; }
+.menu-panel th, .menu-panel td { border: 1px solid #7f8c8d; padding: 8px; text-align: left; }
+.menu-panel th { background-color: rgba(127, 140, 141, 0.3); }
 
-#helpMenu a { color: #5dade2; text-decoration: none; }
-#helpMenu a:hover { text-decoration: underline; }
+.menu-panel a { color: #5dade2; text-decoration: none; }
+.menu-panel a:hover { text-decoration: underline; }
 
-#helpMenu .setting { text-align: center; margin-top: 20px; }
-#helpMenu .setting p { margin-top: 20px; margin-bottom: 10px; font-size: 18px; }
-#helpMenu .setting p:first-child { margin-top: 0; }
-#helpMenu .options { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
+.menu-panel .setting { text-align: center; margin-top: 20px; }
+.menu-panel .setting p { margin-top: 20px; margin-bottom: 10px; font-size: 18px; }
+.menu-panel .setting p:first-child { margin-top: 0; }
+.menu-panel .options { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
 
-#helpMenu .setting-desc {
+.menu-panel .setting-desc {
     font-size: 14px;
     color: #bdc3c7;
     margin-top: -10px;
     min-height: 2.5em;
     font-style: italic;
 }
-/* [NEW] Add specific margin to the preset description */
-#helpMenu #preset-desc {
+.menu-panel #preset-desc {
     margin-bottom: 25px;
 }
 
 /* Styles for Track Generation Sliders */
-#helpMenu .slider-container {
+.menu-panel .slider-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -95,13 +94,13 @@ body {
     gap: 10px;
 }
 
-#helpMenu .slider-container label {
+.menu-panel .slider-container label {
     flex-basis: 120px;
     text-align: right;
     font-size: 16px;
 }
 
-#helpMenu input[type="range"] {
+.menu-panel input[type="range"] {
     flex-grow: 1;
     cursor: pointer;
     -webkit-appearance: none; appearance: none;
@@ -110,27 +109,27 @@ body {
     outline: none; border-radius: 4px;
     transition: opacity .2s;
 }
-#helpMenu input[type="range"]:hover { opacity: 0.9; }
+.menu-panel input[type="range"]:hover { opacity: 0.9; }
 
-#helpMenu input[type="range"]::-webkit-slider-thumb {
+.menu-panel input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none;
     width: 20px; height: 20px;
     background: #ecf0f1; border-radius: 50%;
     border: 2px solid #bdc3c7;
 }
 
-#helpMenu input[type="range"]::-moz-range-thumb {
+.menu-panel input[type="range"]::-moz-range-thumb {
     width: 20px; height: 20px;
     background: #ecf0f1; border-radius: 50%;
     border: 2px solid #bdc3c7;
 }
 
-#helpMenu .slider-container span {
+.menu-panel .slider-container span {
     flex-basis: 40px; text-align: left;
     font-weight: bold; color: #ecf0f1;
 }
 
-#helpMenu button {
+.menu-panel button {
   padding: 10px 15px;
   background-color: #7f8c8d;
   border: 1px solid #95a5a6;
@@ -140,31 +139,52 @@ body {
   font-family: monospace;
   font-size: 16px;
 }
-#helpMenu button:hover { background-color: #95a5a6; }
-#helpMenu button.active { background-color: #2980b9; border-color: #3498db; font-weight: bold; }
+.menu-panel button:hover { background-color: #95a5a6; }
+.menu-panel button.active { background-color: #2980b9; border-color: #3498db; font-weight: bold; }
 
-/* [MODIFIED] Custom map button has a distinct color */
-#helpMenu #reset-map-btn {
+.menu-panel #reset-map-btn {
     display: block; width: 100%;
     margin-top: 10px;
     background-color: #16a085; /* Green */
     border-color: #1abc9c;
 }
-#helpMenu #reset-map-btn:hover { background-color: #1abc9c; }
+.menu-panel #reset-map-btn:hover { background-color: #1abc9c; }
 
-#helpMenu button#close-help-btn { display: block; margin: 20px auto 0; }
-
-#helpMenu hr { border: 0; border-top: 1px solid #7f8c8d; margin: 1.5em 0; }
-
-/* Help toggle button styles */
-#help-toggle-button {
-    position: fixed;
-    bottom: 10px; left: 10px;
-    background-color: rgba(44, 62, 80, 0.8);
-    color: white; padding: 8px 12px;
-    border-radius: 5px; font-size: 14px;
-    cursor: pointer; user-select: none;
-    z-index: 5; transition: background-color 0.2s;
-    border: 1px solid #ecf0f1;
+/* [MODIFIED] Target all close buttons inside panels */
+.menu-panel button[id^="close-"] { 
+    display: block; 
+    margin: 20px auto 0; 
 }
-#help-toggle-button:hover { background-color: rgba(44, 62, 80, 1.0); }
+
+.menu-panel hr { border: 0; border-top: 1px solid #7f8c8d; margin: 1.5em 0; }
+
+/* [NEW] Styles for the corner toggle button container */
+#menu-toggles {
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    z-index: 5;
+}
+
+/* [MODIFIED] Shared styles for individual toggle buttons */
+#help-toggle-button,
+#options-toggle-button {
+    background-color: rgba(44, 62, 80, 0.8);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+    border: 1px solid #ecf0f1;
+    text-align: center;
+}
+
+#help-toggle-button:hover,
+#options-toggle-button:hover {
+    background-color: rgba(44, 62, 80, 1.0);
+}

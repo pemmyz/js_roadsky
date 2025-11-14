@@ -5,7 +5,10 @@ function lerp(a, b, t) { return a + (b - a) * t; }
 // ============================ Shader Sources ============================
 const vsSourceTexture = ` attribute vec3 aPosition; attribute vec2 aTexCoord; uniform mat4 uProjection; uniform mat4 uView; uniform mat4 uModel; varying vec2 vTexCoord; void main(void) { gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0); vTexCoord = aTexCoord; }`;
 const fsSourceTexture = ` precision mediump float; varying vec2 vTexCoord; uniform sampler2D uTexture; void main(void) { gl_FragColor = texture2D(uTexture, vTexCoord); }`;
+
+// [CORRECTED] The line "vColor = vColor;" has been fixed to "vColor = aColor;"
 const vsSourceColor = ` attribute vec3 aPosition; attribute vec3 aColor; uniform mat4 uProjection; uniform mat4 uView; uniform mat4 uModel; varying vec3 vColor; void main(void) { gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0); vColor = aColor; }`;
+
 const fsSourceColor = ` precision mediump float; varying vec3 vColor; void main(void) { gl_FragColor = vec4(vColor, 1.0); }`;
 
 // ============================ Shader & Texture Utilities ============================
@@ -19,7 +22,49 @@ function createTrack(length, seed, minGap, maxGap) { let rng = Math.random; if (
 // ============================ Geometry Generation ============================
 function createCubeGeometry(width, height, depth, checkSize = 1.0) { const w = width / 2, h = height / 2, d = depth / 2; const uMaxW = width / checkSize; const uMaxD = depth / checkSize; const vMaxH = height / checkSize; const vMaxD = depth / checkSize; return new Float32Array([ -w, -h, d, 0, 0, w, -h, d, uMaxW, 0, w, h, d, uMaxW, vMaxH, -w, -h, d, 0, 0, w, h, d, uMaxW, vMaxH, -w, h, d, 0, vMaxH, -w, -h, -d, uMaxW, 0, -w, h, -d, uMaxW, vMaxH, w, h, -d, 0, vMaxH, -w, -h, -d, uMaxW, 0, w, h, -d, 0, vMaxH, w, -h, -d, 0, 0, -w, h, -d, 0, vMaxD, -w, h, d, 0, 0, w, h, d, uMaxW, 0, -w, h, -d, 0, vMaxD, w, h, d, uMaxW, 0, w, h, -d, uMaxW, vMaxD, -w, -h, -d, 0, 0, w, -h, -d, uMaxW, 0, w, -h, d, uMaxW, vMaxD, -w, -h, -d, 0, 0, w, -h, d, uMaxW, vMaxD, -w, -h, d, 0, vMaxD, w, -h, -d, uMaxD, 0, w, h, -d, uMaxD, vMaxH, w, h, d, 0, vMaxH, w, -h, -d, uMaxD, 0, w, h, d, 0, vMaxH, w, -h, d, 0, 0, -w, -h, -d, 0, 0, -w, -h, d, uMaxD, 0, -w, h, d, uMaxD, vMaxH, -w, -h, -d, 0, 0, -w, h, d, uMaxD, vMaxH, -w, h, -d, uMaxD, vMaxH ]); }
 function createColoredCubeGeometry(width, height, depth, faceColors) { const w = width / 2, h = height / 2, d = depth / 2; const { front, back, top, bottom, right, left } = faceColors; return new Float32Array([ -w, -h, d, ...front, w, -h, d, ...front, w, h, d, ...front, -w, -h, d, ...front, w, h, d, ...front, -w, h, d, ...front, -w, -h, -d, ...back, -w, h, -d, ...back, w, h, -d, ...back, -w, -h, -d, ...back, w, h, -d, ...back, w, -h, -d, ...back, -w, h, -d, ...top, -w, h, d, ...top, w, h, d, ...top, -w, h, -d, ...top, w, h, d, ...top, w, h, -d, ...top, -w, -h, -d, ...bottom, w, -h, -d, ...bottom, w, -h, d, ...bottom, -w, -h, -d, ...bottom, w, -h, d, ...bottom, -w, -h, d, ...bottom, w, -h, -d, ...right, w, h, -d, ...right, w, h, d, ...right, w, -h, -d, ...right, w, h, d, ...right, w, -h, d, ...right, -w, -h, -d, ...left, -w, -h, d, ...left, -w, h, d, ...left, -w, -h, -d, ...left, -w, h, d, ...left, -w, h, -d, ...left ]); }
-function createCarGeometry() { const carColors = { top: [1.0, 0.2, 0.2], side: [0.8, 0.0, 0.0], front: [0.6, 0.0, 0.0], bottom: [0.2, 0.0, 0.0] }; const chassisFaceColors = { front: carColors.front, back: carColors.front, top: carColors.top, bottom: carColors.bottom, right: carColors.side, left: carColors.side }; const cabinFaceColors = { front: carColors.front, back: carColors.front, top: carColors.top, bottom: carColors.top, right: carColors.side, left: carColors.side }; const chassisVerts = createColoredCubeGeometry(1.0, 0.3, 2.0, chassisFaceColors); for (let i = 0; i < chassisVerts.length; i += 6) { chassisVerts[i+1] -= 0.15; } const cabinVerts = createColoredCubeGeometry(0.8, 0.4, 1.0, cabinFaceColors); for (let i = 0; i < cabinVerts.length; i += 6) { cabinVerts[i+1] += 0.2; cabinVerts[i+2] += 0.2; } const combinedVerts = new Float32Array(chassisVerts.length + cabinVerts.length); combinedVerts.set(chassisVerts, 0); combinedVerts.set(cabinVerts, chassisVerts.length); return combinedVerts; }
+
+// In script.js
+
+function createCarGeometry() { 
+    const carColors = { 
+        top: [1.0, 0.2, 0.2],
+        side: [0.8, 0.0, 0.0],
+        front: [0.6, 0.0, 0.0],
+        bottom: [0.2, 0.0, 0.0]
+    }; 
+    
+    // The back face color is changed back to match the front for original shading
+    const chassisFaceColors = { 
+        front: carColors.front, 
+        back: carColors.front, // [CHANGED] Reverted from carColors.side
+        top: carColors.top, 
+        bottom: carColors.bottom, 
+        right: carColors.side, 
+        left: carColors.side 
+    };
+    
+    // The back of the cabin is also changed back to match the front
+    const cabinFaceColors = { 
+        front: carColors.front, 
+        back: carColors.front, // [CHANGED] Reverted from carColors.side
+        top: carColors.top, 
+        bottom: carColors.top, 
+        right: carColors.side, 
+        left: carColors.side 
+    }; 
+    
+    const chassisVerts = createColoredCubeGeometry(1.0, 0.3, 2.0, chassisFaceColors); 
+    for (let i = 0; i < chassisVerts.length; i += 6) { chassisVerts[i+1] -= 0.15; } 
+    
+    const cabinVerts = createColoredCubeGeometry(0.8, 0.4, 1.0, cabinFaceColors); 
+    for (let i = 0; i < cabinVerts.length; i += 6) { cabinVerts[i+1] += 0.2; cabinVerts[i+2] += 0.2; } 
+    
+    const combinedVerts = new Float32Array(chassisVerts.length + cabinVerts.length); 
+    combinedVerts.set(chassisVerts, 0); 
+    combinedVerts.set(cabinVerts, chassisVerts.length); 
+    return combinedVerts; 
+}
+
 function buildTrackGeometry(platforms) { const allVerts = []; const checkSize = 1.2; for (const p of platforms) { const cubeVerts = createCubeGeometry(p.width, p.height, p.depth, checkSize); for (let i = 0; i < cubeVerts.length; i += 5) { allVerts.push(cubeVerts[i] + p.x, cubeVerts[i+1] + p.y, cubeVerts[i+2] + p.z, cubeVerts[i+3], cubeVerts[i+4] ); } } return new Float32Array(allVerts); }
 
 // ============================ Global Variables ============================
@@ -35,12 +80,12 @@ let gameState = 'playing';
 let controlStyle = 'inverted';
 let lastFrameTime = 0;
 const keysDown = {};
-const GRAVITY = 25.0, FORWARD_SPEED = 25.0, STRAFE_SPEED = 15.0, JUMP_STRENGTH = 10.0;
+
+let GRAVITY = 25.0, FORWARD_SPEED = 25.0, STRAFE_SPEED = 15.0, JUMP_STRENGTH = 10.0;
 
 let trackMinGap = 1.8;
 let trackMaxGap = 5.0;
 
-// [MODIFIED] Difficulty preset values
 const DIFFICULTY_PRESETS = {
     easy:   { min: 6.4, max: 10.5 },
     medium: { min: 7.4, max: 13.2 },
@@ -91,20 +136,49 @@ function initBuffers() {
 
 function initBuffer(dataArray) { if (!dataArray || dataArray.length === 0) return null; const buffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buffer); gl.bufferData(gl.ARRAY_BUFFER, dataArray, gl.STATIC_DRAW); return buffer; }
 
-// ============================ Game State & Map Control ============================
-function toggleHelpMenu() {
-    const menu = document.getElementById('helpMenu');
+// ============================ Game State & Menu Control ============================
+function closeAllMenus() {
+    document.getElementById('helpMenu').classList.add('hidden');
+    document.getElementById('optionsMenu').classList.add('hidden');
+}
+
+function pauseGame() {
     if (gameState === 'playing') {
         gameState = 'paused';
-        menu.classList.remove('hidden');
-    } else if (gameState === 'paused') {
+    }
+}
+
+function resumeGame() {
+    if (gameState === 'paused') {
         gameState = 'playing';
-        menu.classList.add('hidden');
         lastFrameTime = performance.now();
     }
 }
 
-// [NEW] Centralized function to reset the map
+function toggleHelpMenu() {
+    const menu = document.getElementById('helpMenu');
+    if (menu.classList.contains('hidden')) {
+        pauseGame();
+        closeAllMenus();
+        menu.classList.remove('hidden');
+    } else {
+        closeAllMenus();
+        resumeGame();
+    }
+}
+
+function toggleOptionsMenu() {
+    const menu = document.getElementById('optionsMenu');
+    if (menu.classList.contains('hidden')) {
+        pauseGame();
+        closeAllMenus();
+        menu.classList.remove('hidden');
+    } else {
+        closeAllMenus();
+        resumeGame();
+    }
+}
+
 function resetMap() {
     console.log(`Creating new map with distances: [${trackMinGap}, ${trackMaxGap}]`);
     trackData = createTrack(100, undefined, trackMinGap, trackMaxGap);
@@ -112,23 +186,51 @@ function resetMap() {
     respawnPlayer();
     score = 0;
     if (gameState === 'paused') {
-        toggleHelpMenu();
+        closeAllMenus();
+        resumeGame();
     }
 }
 
 function setupEventListeners() {
-    window.addEventListener("keydown", e => { const key = e.key.toLowerCase(); if (key === 'h') { toggleHelpMenu(); } else { keysDown[key] = true; } });
-    window.addEventListener("keyup",   e => { keysDown[e.key.toLowerCase()] = false; });
+    window.addEventListener("keydown", e => {
+        const key = e.key.toLowerCase();
+        if (key === 'h') { e.preventDefault(); toggleHelpMenu(); } 
+        else if (key === 'o') { e.preventDefault(); toggleOptionsMenu(); }
+        else { keysDown[key] = true; }
+    });
+    window.addEventListener("keyup", e => { keysDown[e.key.toLowerCase()] = false; });
+
     document.getElementById('help-toggle-button').addEventListener('click', toggleHelpMenu);
     document.getElementById('close-help-btn').addEventListener('click', toggleHelpMenu);
+    document.getElementById('options-toggle-button').addEventListener('click', toggleOptionsMenu);
+    document.getElementById('close-options-btn').addEventListener('click', toggleOptionsMenu);
 
-    const btnInverted = document.getElementById('controlsInverted');
-    const btnNormal = document.getElementById('controlsNormal');
-    const cameraDesc = document.getElementById('camera-desc');
-    btnInverted.addEventListener('click', () => { controlStyle = 'inverted'; btnInverted.classList.add('active'); btnNormal.classList.remove('active'); cameraDesc.textContent = "Camera swings out during turns."; });
-    btnNormal.addEventListener('click', () => { controlStyle = 'normal'; btnNormal.classList.add('active'); btnInverted.classList.remove('active'); cameraDesc.textContent = "Camera remains fixed behind the car."; });
+    const btnDynamic = document.getElementById('camera-dynamic-btn');
+    const btnStatic = document.getElementById('camera-static-btn');
+    const cameraDescOptions = document.getElementById('camera-desc-options');
+    btnDynamic.addEventListener('click', () => { controlStyle = 'inverted'; btnDynamic.classList.add('active'); btnStatic.classList.remove('active'); cameraDescOptions.textContent = "Camera swings out during turns."; });
+    btnStatic.addEventListener('click', () => { controlStyle = 'normal'; btnStatic.classList.add('active'); btnDynamic.classList.remove('active'); cameraDescOptions.textContent = "Camera remains fixed behind the car."; });
     
-    // Track generation controls
+    const fwdSpeedSlider = document.getElementById('forward-speed-slider');
+    const fwdSpeedValue = document.getElementById('forward-speed-value');
+    fwdSpeedSlider.value = FORWARD_SPEED; fwdSpeedValue.textContent = FORWARD_SPEED.toFixed(1);
+    fwdSpeedSlider.addEventListener('input', e => { FORWARD_SPEED = parseFloat(e.target.value); fwdSpeedValue.textContent = FORWARD_SPEED.toFixed(1); });
+
+    const strafeSpeedSlider = document.getElementById('strafe-speed-slider');
+    const strafeSpeedValue = document.getElementById('strafe-speed-value');
+    strafeSpeedSlider.value = STRAFE_SPEED; strafeSpeedValue.textContent = STRAFE_SPEED.toFixed(1);
+    strafeSpeedSlider.addEventListener('input', e => { STRAFE_SPEED = parseFloat(e.target.value); strafeSpeedValue.textContent = STRAFE_SPEED.toFixed(1); });
+
+    const jumpSlider = document.getElementById('jump-strength-slider');
+    const jumpValue = document.getElementById('jump-strength-value');
+    jumpSlider.value = JUMP_STRENGTH; jumpValue.textContent = JUMP_STRENGTH.toFixed(1);
+    jumpSlider.addEventListener('input', e => { JUMP_STRENGTH = parseFloat(e.target.value); jumpValue.textContent = JUMP_STRENGTH.toFixed(1); });
+
+    const gravitySlider = document.getElementById('gravity-slider');
+    const gravityValue = document.getElementById('gravity-value');
+    gravitySlider.value = GRAVITY; gravityValue.textContent = GRAVITY.toFixed(1);
+    gravitySlider.addEventListener('input', e => { GRAVITY = parseFloat(e.target.value); gravityValue.textContent = GRAVITY.toFixed(1); });
+
     const minDistSlider = document.getElementById('min-dist-slider');
     const minDistValue = document.getElementById('min-dist-value');
     const maxDistSlider = document.getElementById('max-dist-slider');
@@ -140,18 +242,14 @@ function setupEventListeners() {
     minDistSlider.addEventListener('input', (e) => { let minVal = parseFloat(e.target.value); if (minVal > trackMaxGap) { trackMaxGap = minVal; maxDistSlider.value = trackMaxGap; maxDistValue.textContent = trackMaxGap.toFixed(1); } trackMinGap = minVal; minDistValue.textContent = trackMinGap.toFixed(1); });
     maxDistSlider.addEventListener('input', (e) => { let maxVal = parseFloat(e.target.value); if (maxVal < trackMinGap) { trackMinGap = maxVal; minDistSlider.value = trackMinGap; minDistValue.textContent = trackMinGap.toFixed(1); } trackMaxGap = maxVal; maxDistValue.textContent = trackMaxGap.toFixed(1); });
 
-    // [MODIFIED] Reset button calls the new central function
     document.getElementById('reset-map-btn').addEventListener('click', resetMap);
 
-    // [NEW] Event listeners for difficulty presets
     const setDifficultyAndReset = (difficulty) => {
         const preset = DIFFICULTY_PRESETS[difficulty];
         trackMinGap = preset.min;
         trackMaxGap = preset.max;
-        minDistSlider.value = trackMinGap;
-        minDistValue.textContent = trackMinGap.toFixed(1);
-        maxDistSlider.value = trackMaxGap;
-        maxDistValue.textContent = trackMaxGap.toFixed(1);
+        minDistSlider.value = trackMinGap; minDistValue.textContent = trackMinGap.toFixed(1);
+        maxDistSlider.value = trackMaxGap; maxDistValue.textContent = trackMaxGap.toFixed(1);
         resetMap();
     };
     document.getElementById('difficulty-easy').addEventListener('click', () => setDifficultyAndReset('easy'));
