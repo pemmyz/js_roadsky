@@ -4,6 +4,8 @@
 
 A lightweight WebGL driving/runner prototype rendered on HTML5 Canvas with a simple HUD overlay and a toggleable Help/Settings menu. Uses **gl‑matrix** for matrices/vectors and generates a procedural platform “track” you jump and steer across.
 
+## Play it now: https://pemmyz.github.io/js_roadsky/
+
 > **Live tech:** WebGL 1.0, HTML5 Canvas 2D (HUD), vanilla JS, gl-matrix 2.8.1
 
 ## Screenshots
