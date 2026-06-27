@@ -1,136 +1,147 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-g">
+  <meta charset="utf-8">
+  <!-- REQUIRED METADATA -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>WebGL Sky Driver</title>
   <link rel="stylesheet" href="style.css">
   
-  <!-- This line is essential. It loads the gl-matrix library from the internet. -->
+  <!-- Loads the gl-matrix library from the internet. -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix-min.js"></script>
-
 </head>
 <body>
-  <canvas id="glCanvas"></canvas>
-  <canvas id="hudCanvas"></canvas>
+  
+  <!-- TOGGLE BUTTON -->
+  <button id="mobile-btn">📱 Fullscreen / Mobile Controls</button>
 
-  <!-- [MODIFIED] Options Menu -->
-  <div id="optionsMenu" class="menu-panel hidden">
-    <h2>Options ⚙️</h2>
-    
-    <h3>Camera</h3>
-    <div class="setting">
-      <p>Camera Style:</p>
-      <div class="options">
-        <button id="camera-dynamic-btn" class="active">Dynamic</button>
-        <button id="camera-static-btn">Static</button>
+  <!-- GAME CONTAINER (Wraps the content to be scaled) -->
+  <div id="game-container">
+    <!-- THE SCREEN: Fixed resolution internal logic (960x720) -->
+    <div id="screen">
+      <!-- Game Canvases -->
+      <canvas id="glCanvas"></canvas>
+      <canvas id="hudCanvas"></canvas>
+
+      <!-- Options Menu -->
+      <div id="optionsMenu" class="menu-panel hidden">
+        <h2>Options ⚙️</h2>
+        
+        <h3>Camera</h3>
+        <div class="setting">
+          <p>Camera Style:</p>
+          <div class="options">
+            <button id="camera-dynamic-btn" class="active">Dynamic</button>
+            <button id="camera-static-btn">Static</button>
+          </div>
+          <p id="camera-desc-options" class="setting-desc">
+            Camera swings out during turns. (Default)
+          </p>
+        </div>
+        <hr>
+
+        <h3>Player Movement</h3>
+        <div class="setting">
+            <div class="slider-container">
+                <label for="forward-speed-slider">Forward Speed:</label>
+                <input type="range" id="forward-speed-slider" min="5.0" max="50.0" step="0.5" value="25.0">
+                <span id="forward-speed-value">25.0</span>
+            </div>
+            <div class="slider-container">
+                <label for="strafe-speed-slider">Strafe Speed:</label>
+                <input type="range" id="strafe-speed-slider" min="5.0" max="30.0" step="0.5" value="15.0">
+                <span id="strafe-speed-value">15.0</span>
+            </div>
+        </div>
+        <hr>
+
+        <h3>Physics</h3>
+        <div class="setting">
+            <div class="slider-container">
+                <label for="jump-strength-slider">Jump Strength:</label>
+                <input type="range" id="jump-strength-slider" min="1.0" max="25.0" step="0.5" value="10.0">
+                <span id="jump-strength-value">10.0</span>
+            </div>
+            <div class="slider-container">
+                <label for="gravity-slider">Gravity:</label>
+                <input type="range" id="gravity-slider" min="5.0" max="50.0" step="0.5" value="25.0">
+                <span id="gravity-value">25.0</span>
+            </div>
+        </div>
+        <hr>
+
+        <h3>🗺️ Track Generation</h3>
+        <div class="setting">
+            <p>Difficulty Presets:</p>
+            <div class="options">
+                <button id="difficulty-easy">Easy</button>
+                <button id="difficulty-medium">Medium</button>
+                <button id="difficulty-hard">Hard</button>
+            </div>
+            <p class="setting-desc" id="preset-desc">Select a preset to generate a new map instantly.</p>
+
+            <div class="slider-container">
+                <label for="min-dist-slider">Min Distance:</label>
+                <input type="range" id="min-dist-slider" min="1.0" max="20.0" step="0.1" value="1.8">
+                <span id="min-dist-value">1.8</span>
+            </div>
+            <div class="slider-container">
+                <label for="max-dist-slider">Max Distance:</label>
+                <input type="range" id="max-dist-slider" min="1.0" max="20.0" step="0.1" value="5.0">
+                <span id="max-dist-value">5.0</span>
+            </div>
+            <button id="reset-map-btn">Create New Map (Custom)</button>
+        </div>
+        <button id="close-options-btn">Close</button>
       </div>
-      <p id="camera-desc-options" class="setting-desc">
-        Camera swings out during turns. (Default)
-      </p>
+
+      <!-- Help Menu -->
+      <div id="helpMenu" class="menu-panel hidden">
+        <h2>WebGL Sky Driver 🛫✨ Help</h2>
+        <h3>🎮 Features</h3>
+        <ul>
+          <li><b>Procedural track generation</b> with a deterministic seed.</li>
+          <li><b>Two camera styles:</b> Dynamic and Static.</li>
+          <li><b>Simple physics:</b> Gravity, grounded jumping, and lateral steering.</li>
+          <li><b>Minimalist WebGL rendering</b> with a 2D Canvas HUD for the score.</li>
+        </ul>
+        <h3>⌨️ Controls</h3>
+        <table>
+          <thead>
+            <tr><th>Action</th><th>Keys / Touch</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Accelerate</td><td>W / ↑ Up / ▲ Touch</td></tr>
+            <tr><td>Steer Left</td><td>A / ← Left / ◀ Touch</td></tr>
+            <tr><td>Steer Right</td><td>D / → Right / ▶ Touch</td></tr>
+            <tr><td>Jump</td><td>Spacebar / Jump Touch</td></tr>
+            <tr><td>Toggle Help</td><td>H</td></tr>
+            <tr><td>Toggle Options</td><td>O</td></tr>
+          </tbody>
+        </table>
+        <hr>
+        <p>Link to repo: <a href="https://github.com/pemmyz/js_roadsky" target="_blank" rel="noopener noreferrer">https://github.com/pemmyz/js_roadsky</a></p>
+        <button id="close-help-btn">Close</button>
+      </div>
+
+      <!-- Container for toggle buttons -->
+      <div id="menu-toggles">
+        <div id="help-toggle-button">Press 'H' for Help</div>
+        <div id="options-toggle-button">Press 'O' for Options</div>
+      </div>
     </div>
-    
-    <hr>
-
-    <h3>Player Movement</h3>
-    <div class="setting">
-        <div class="slider-container">
-            <label for="forward-speed-slider">Forward Speed:</label>
-            <input type="range" id="forward-speed-slider" min="5.0" max="50.0" step="0.5" value="25.0">
-            <span id="forward-speed-value">25.0</span>
-        </div>
-        <div class="slider-container">
-            <label for="strafe-speed-slider">Strafe Speed:</label>
-            <input type="range" id="strafe-speed-slider" min="5.0" max="30.0" step="0.5" value="15.0">
-            <span id="strafe-speed-value">15.0</span>
-        </div>
-    </div>
-
-    <hr>
-
-    <h3>Physics</h3>
-    <div class="setting">
-        <div class="slider-container">
-            <label for="jump-strength-slider">Jump Strength:</label>
-            <input type="range" id="jump-strength-slider" min="1.0" max="25.0" step="0.5" value="10.0">
-            <span id="jump-strength-value">10.0</span>
-        </div>
-        <div class="slider-container">
-            <label for="gravity-slider">Gravity:</label>
-            <input type="range" id="gravity-slider" min="5.0" max="50.0" step="0.5" value="25.0">
-            <span id="gravity-value">25.0</span>
-        </div>
-    </div>
-    
-    <hr>
-
-    <!-- [MOVED] Track Generation section is now in Options -->
-    <h3>🗺️ Track Generation</h3>
-    <div class="setting">
-        <!-- Difficulty preset buttons -->
-        <p>Difficulty Presets:</p>
-        <div class="options">
-            <button id="difficulty-easy">Easy</button>
-            <button id="difficulty-medium">Medium</button>
-            <button id="difficulty-hard">Hard</button>
-        </div>
-        <p class="setting-desc" id="preset-desc">Select a preset to generate a new map instantly.</p>
-
-        <!-- Custom sliders -->
-        <div class="slider-container">
-            <label for="min-dist-slider">Min Distance:</label>
-            <input type="range" id="min-dist-slider" min="1.0" max="20.0" step="0.1" value="1.8">
-            <span id="min-dist-value">1.8</span>
-        </div>
-        <div class="slider-container">
-            <label for="max-dist-slider">Max Distance:</label>
-            <input type="range" id="max-dist-slider" min="1.0" max="20.0" step="0.1" value="5.0">
-            <span id="max-dist-value">5.0</span>
-        </div>
-        <button id="reset-map-btn">Create New Map (Custom)</button>
-    </div>
-
-    <button id="close-options-btn">Close</button>
   </div>
 
-
-  <!-- [MODIFIED] Help Menu (Track Generation section removed) -->
-  <div id="helpMenu" class="menu-panel hidden">
-    <h2>WebGL Sky Driver 🛫✨ Help</h2>
-    
-    <h3>🎮 Features</h3>
-    <ul>
-      <li><b>Procedural track generation</b> with a deterministic seed.</li>
-      <li><b>Two camera styles:</b> Dynamic (swings on turns) and Static (fixed chase cam).</li>
-      <li><b>Simple physics:</b> Gravity, grounded jumping, and lateral steering.</li>
-      <li><b>Minimalist WebGL rendering</b> with a 2D Canvas HUD for the score.</li>
-      <li>Responsive canvas that resizes to the viewport.</li>
-    </ul>
-
-    <h3>⌨️ Controls</h3>
-    <table>
-      <thead>
-        <tr><th>Action</th><th>Keys</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Accelerate</td><td>W / ↑ Up Arrow</td></tr>
-        <tr><td>Steer Left</td><td>A / ← Left Arrow</td></tr>
-        <tr><td>Steer Right</td><td>D / → Right Arrow</td></tr>
-        <tr><td>Jump</td><td>Spacebar</td></tr>
-        <tr><td>Toggle Help</td><td>H</td></tr>
-        <tr><td>Toggle Options</td><td>O</td></tr>
-      </tbody>
-    </table>
-    
-    <hr>
-
-    <p>Link to repo: <a href="https://github.com/pemmyz/js_roadsky" target="_blank" rel="noopener noreferrer">https://github.com/pemmyz/js_roadsky</a></p>
-    <button id="close-help-btn">Close</button>
-  </div>
-
-  <!-- [NEW] Container for toggle buttons -->
-  <div id="menu-toggles">
-    <div id="help-toggle-button">Press 'H' for Help</div>
-    <div id="options-toggle-button">Press 'O' for Options</div>
+  <!-- MOBILE TOUCH CONTROLS OVERLAY -->
+  <div id="mobile-controls">
+      <div id="mobile-dpad">
+          <button id="mobile-left" class="mobile-control-btn">◀</button>
+          <button id="mobile-right" class="mobile-control-btn">▶</button>
+      </div>
+      <div id="mobile-action">
+          <button id="mobile-jump" class="mobile-control-btn" style="font-size:18px; font-weight:bold;">JUMP</button>
+          <button id="mobile-up" class="mobile-control-btn">▲</button>
+      </div>
   </div>
   
   <script src="script.js"></script>

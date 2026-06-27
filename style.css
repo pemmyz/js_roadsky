@@ -1,32 +1,59 @@
+/* ROOT & BODY SETUP */
 body {
   margin: 0;
-  overflow: hidden; /* Prevent scrollbars */
-  background-color: #34495e; /* Add a sky-like background color */
+  background: #000; /* Dark outer background for empty space */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden; /* Prevent scrollbars entirely */
   font-family: monospace;
+  color: white;
 }
 
-/* WebGL canvas fills the viewport */
-#glCanvas {
+/* --- MOBILE MODE LOCK --- */
+body.mobile-mode {
+  touch-action: none; /* Disables browser gestures */
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+}
+
+#game-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* --- THE SCREEN (Fixed Internal Resolution) --- */
+#screen {
+  width: 960px;  /* Base Width */
+  height: 720px; /* Base Height */
+  background: #34495e; /* Sky background inside the game area */
+  position: relative;
+  overflow: hidden;
+  transform-origin: center center;
+  box-shadow: 0 0 50px rgba(0,0,0,0.8);
+  flex-shrink: 0;
+}
+
+/* WebGL canvas fills the screen */
+#glCanvas, #hudCanvas {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 0; /* Behind the overlay */
+  width: 100%;
+  height: 100%;
 }
+#glCanvas { z-index: 0; }
+#hudCanvas { z-index: 1; pointer-events: none; }
 
-/* Overlay canvas for HUD */
-#hudCanvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 1; /* On top of the WebGL canvas */
-  pointer-events: none; /* HUD doesn't need clicks */
-}
-
-/* [NEW] Shared styles for all menu panels */
+/* Shared styles for all menu panels */
 .menu-panel {
   position: absolute;
   top: 50%;
@@ -38,153 +65,112 @@ body {
   padding: 25px;
   border-radius: 10px;
   border: 2px solid #ecf0f1;
-  width: min(600px, 90vw);
-  max-height: 90vh;
+  width: min(600px, 90%);
+  max-height: 90%;
   overflow-y: auto;
   box-shadow: 0 0 20px rgba(0,0,0,0.5);
   text-align: left;
   line-height: 1.6;
 }
-
-.menu-panel.hidden {
-  display: none;
-}
-
-.menu-panel h2, .menu-panel h3 {
-  text-align: center;
-  margin-top: 1em;
-  margin-bottom: 0.5em;
-  border-bottom: 1px solid #7f8c8d;
-  padding-bottom: 10px;
-}
+.menu-panel.hidden { display: none; }
+.menu-panel h2, .menu-panel h3 { text-align: center; margin-top: 1em; margin-bottom: 0.5em; border-bottom: 1px solid #7f8c8d; padding-bottom: 10px; }
 .menu-panel h2:first-child { margin-top: 0; }
 .menu-panel h3 { border-bottom: none; }
 .menu-panel ul { list-style-position: inside; padding-left: 10px; }
 .menu-panel li { margin-bottom: 0.5em; }
-
 .menu-panel table { width: 100%; border-collapse: collapse; margin: 1em 0; }
 .menu-panel th, .menu-panel td { border: 1px solid #7f8c8d; padding: 8px; text-align: left; }
 .menu-panel th { background-color: rgba(127, 140, 141, 0.3); }
-
 .menu-panel a { color: #5dade2; text-decoration: none; }
 .menu-panel a:hover { text-decoration: underline; }
-
 .menu-panel .setting { text-align: center; margin-top: 20px; }
 .menu-panel .setting p { margin-top: 20px; margin-bottom: 10px; font-size: 18px; }
 .menu-panel .setting p:first-child { margin-top: 0; }
 .menu-panel .options { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
+.menu-panel .setting-desc { font-size: 14px; color: #bdc3c7; margin-top: -10px; min-height: 2.5em; font-style: italic; }
+.menu-panel #preset-desc { margin-bottom: 25px; }
 
-.menu-panel .setting-desc {
-    font-size: 14px;
-    color: #bdc3c7;
-    margin-top: -10px;
-    min-height: 2.5em;
-    font-style: italic;
-}
-.menu-panel #preset-desc {
-    margin-bottom: 25px;
-}
-
-/* Styles for Track Generation Sliders */
-.menu-panel .slider-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-    gap: 10px;
-}
-
-.menu-panel .slider-container label {
-    flex-basis: 120px;
-    text-align: right;
-    font-size: 16px;
-}
-
-.menu-panel input[type="range"] {
-    flex-grow: 1;
-    cursor: pointer;
-    -webkit-appearance: none; appearance: none;
-    width: 100%; height: 8px;
-    background: #566573;
-    outline: none; border-radius: 4px;
-    transition: opacity .2s;
-}
+.menu-panel .slider-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; gap: 10px; }
+.menu-panel .slider-container label { flex-basis: 120px; text-align: right; font-size: 16px; }
+.menu-panel input[type="range"] { flex-grow: 1; cursor: pointer; -webkit-appearance: none; appearance: none; width: 100%; height: 8px; background: #566573; outline: none; border-radius: 4px; transition: opacity .2s; }
 .menu-panel input[type="range"]:hover { opacity: 0.9; }
-
-.menu-panel input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none; appearance: none;
-    width: 20px; height: 20px;
-    background: #ecf0f1; border-radius: 50%;
-    border: 2px solid #bdc3c7;
-}
-
-.menu-panel input[type="range"]::-moz-range-thumb {
-    width: 20px; height: 20px;
-    background: #ecf0f1; border-radius: 50%;
-    border: 2px solid #bdc3c7;
-}
-
-.menu-panel .slider-container span {
-    flex-basis: 40px; text-align: left;
-    font-weight: bold; color: #ecf0f1;
-}
-
-.menu-panel button {
-  padding: 10px 15px;
-  background-color: #7f8c8d;
-  border: 1px solid #95a5a6;
-  color: white;
-  cursor: pointer;
-  border-radius: 5px;
-  font-family: monospace;
-  font-size: 16px;
-}
+.menu-panel input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: #ecf0f1; border-radius: 50%; border: 2px solid #bdc3c7; }
+.menu-panel input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; background: #ecf0f1; border-radius: 50%; border: 2px solid #bdc3c7; }
+.menu-panel .slider-container span { flex-basis: 40px; text-align: left; font-weight: bold; color: #ecf0f1; }
+.menu-panel button { padding: 10px 15px; background-color: #7f8c8d; border: 1px solid #95a5a6; color: white; cursor: pointer; border-radius: 5px; font-family: monospace; font-size: 16px; }
 .menu-panel button:hover { background-color: #95a5a6; }
 .menu-panel button.active { background-color: #2980b9; border-color: #3498db; font-weight: bold; }
-
-.menu-panel #reset-map-btn {
-    display: block; width: 100%;
-    margin-top: 10px;
-    background-color: #16a085; /* Green */
-    border-color: #1abc9c;
-}
+.menu-panel #reset-map-btn { display: block; width: 100%; margin-top: 10px; background-color: #16a085; border-color: #1abc9c; }
 .menu-panel #reset-map-btn:hover { background-color: #1abc9c; }
-
-/* [MODIFIED] Target all close buttons inside panels */
-.menu-panel button[id^="close-"] { 
-    display: block; 
-    margin: 20px auto 0; 
-}
-
+.menu-panel button[id^="close-"] { display: block; margin: 20px auto 0; }
 .menu-panel hr { border: 0; border-top: 1px solid #7f8c8d; margin: 1.5em 0; }
 
-/* [NEW] Styles for the corner toggle button container */
-#menu-toggles {
-    position: fixed;
-    bottom: 10px;
-    left: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    z-index: 5;
-}
+/* Corner toggle button container */
+#menu-toggles { position: absolute; bottom: 10px; left: 10px; display: flex; flex-direction: column; gap: 5px; z-index: 5; }
+#help-toggle-button, #options-toggle-button { background-color: rgba(44, 62, 80, 0.8); color: white; padding: 8px 12px; border-radius: 5px; font-size: 14px; cursor: pointer; user-select: none; transition: background-color 0.2s; border: 1px solid #ecf0f1; text-align: center; }
+#help-toggle-button:hover, #options-toggle-button:hover { background-color: rgba(44, 62, 80, 1.0); }
 
-/* [MODIFIED] Shared styles for individual toggle buttons */
-#help-toggle-button,
-#options-toggle-button {
-    background-color: rgba(44, 62, 80, 0.8);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 5px;
-    font-size: 14px;
-    cursor: pointer;
-    user-select: none;
-    transition: background-color 0.2s;
-    border: 1px solid #ecf0f1;
-    text-align: center;
+/* --- FULLSCREEN TOGGLE BUTTON --- */
+#mobile-btn {
+  position: fixed;
+  top: 10px; left: 10px;
+  z-index: 2000;
+  background: rgba(44, 62, 80, 0.8);
+  color: white;
+  border: 1px solid #ecf0f1;
+  border-radius: 5px;
+  font-size: 14px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
+#mobile-btn:hover { background-color: rgba(44, 62, 80, 1.0); }
+body.mobile-mode #mobile-btn { display: none; }
 
-#help-toggle-button:hover,
-#options-toggle-button:hover {
-    background-color: rgba(44, 62, 80, 1.0);
+/* --- MOBILE CONTROLS OVERLAY --- */
+#mobile-controls {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; /* Let clicks pass through to empty space */
+  z-index: 3000;
+  display: none; /* Hidden by default */
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 20px;
+  box-sizing: border-box;
+}
+/* Show controls only when in mobile mode */
+body.mobile-mode #mobile-controls { display: flex; }
+
+/* --- CONTROL BUTTONS --- */
+.mobile-control-btn {
+  pointer-events: auto; /* Re-enable clicks for buttons */
+  width: 80px; height: 80px;
+  background: rgba(255,255,255,0.15);
+  border: 3px solid rgba(255,255,255,0.4);
+  border-radius: 50%;
+  color: white;
+  font-size: 36px;
+  display: flex; justify-content: center; align-items: center;
+  user-select: none;
+  backdrop-filter: blur(4px);
+  margin-bottom: 20px;
+  transition: transform 0.1s, background 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-control-btn:active {
+  background: rgba(255,255,255,0.4);
+  transform: scale(0.95);
+}
+#mobile-dpad {
+  display: flex;
+  gap: 15px;
+  margin-left: 20px;
+  margin-bottom: 20px;
+}
+#mobile-action {
+  display: flex;
+  gap: 15px;
+  margin-right: 20px;
+  margin-bottom: 20px;
 }

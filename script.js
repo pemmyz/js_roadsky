@@ -5,10 +5,7 @@ function lerp(a, b, t) { return a + (b - a) * t; }
 // ============================ Shader Sources ============================
 const vsSourceTexture = ` attribute vec3 aPosition; attribute vec2 aTexCoord; uniform mat4 uProjection; uniform mat4 uView; uniform mat4 uModel; varying vec2 vTexCoord; void main(void) { gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0); vTexCoord = aTexCoord; }`;
 const fsSourceTexture = ` precision mediump float; varying vec2 vTexCoord; uniform sampler2D uTexture; void main(void) { gl_FragColor = texture2D(uTexture, vTexCoord); }`;
-
-// [CORRECTED] The line "vColor = vColor;" has been fixed to "vColor = aColor;"
 const vsSourceColor = ` attribute vec3 aPosition; attribute vec3 aColor; uniform mat4 uProjection; uniform mat4 uView; uniform mat4 uModel; varying vec3 vColor; void main(void) { gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0); vColor = aColor; }`;
-
 const fsSourceColor = ` precision mediump float; varying vec3 vColor; void main(void) { gl_FragColor = vec4(vColor, 1.0); }`;
 
 // ============================ Shader & Texture Utilities ============================
@@ -23,42 +20,14 @@ function createTrack(length, seed, minGap, maxGap) { let rng = Math.random; if (
 function createCubeGeometry(width, height, depth, checkSize = 1.0) { const w = width / 2, h = height / 2, d = depth / 2; const uMaxW = width / checkSize; const uMaxD = depth / checkSize; const vMaxH = height / checkSize; const vMaxD = depth / checkSize; return new Float32Array([ -w, -h, d, 0, 0, w, -h, d, uMaxW, 0, w, h, d, uMaxW, vMaxH, -w, -h, d, 0, 0, w, h, d, uMaxW, vMaxH, -w, h, d, 0, vMaxH, -w, -h, -d, uMaxW, 0, -w, h, -d, uMaxW, vMaxH, w, h, -d, 0, vMaxH, -w, -h, -d, uMaxW, 0, w, h, -d, 0, vMaxH, w, -h, -d, 0, 0, -w, h, -d, 0, vMaxD, -w, h, d, 0, 0, w, h, d, uMaxW, 0, -w, h, -d, 0, vMaxD, w, h, d, uMaxW, 0, w, h, -d, uMaxW, vMaxD, -w, -h, -d, 0, 0, w, -h, -d, uMaxW, 0, w, -h, d, uMaxW, vMaxD, -w, -h, -d, 0, 0, w, -h, d, uMaxW, vMaxD, -w, -h, d, 0, vMaxD, w, -h, -d, uMaxD, 0, w, h, -d, uMaxD, vMaxH, w, h, d, 0, vMaxH, w, -h, -d, uMaxD, 0, w, h, d, 0, vMaxH, w, -h, d, 0, 0, -w, -h, -d, 0, 0, -w, -h, d, uMaxD, 0, -w, h, d, uMaxD, vMaxH, -w, -h, -d, 0, 0, -w, h, d, uMaxD, vMaxH, -w, h, -d, uMaxD, vMaxH ]); }
 function createColoredCubeGeometry(width, height, depth, faceColors) { const w = width / 2, h = height / 2, d = depth / 2; const { front, back, top, bottom, right, left } = faceColors; return new Float32Array([ -w, -h, d, ...front, w, -h, d, ...front, w, h, d, ...front, -w, -h, d, ...front, w, h, d, ...front, -w, h, d, ...front, -w, -h, -d, ...back, -w, h, -d, ...back, w, h, -d, ...back, -w, -h, -d, ...back, w, h, -d, ...back, w, -h, -d, ...back, -w, h, -d, ...top, -w, h, d, ...top, w, h, d, ...top, -w, h, -d, ...top, w, h, d, ...top, w, h, -d, ...top, -w, -h, -d, ...bottom, w, -h, -d, ...bottom, w, -h, d, ...bottom, -w, -h, -d, ...bottom, w, -h, d, ...bottom, -w, -h, d, ...bottom, w, -h, -d, ...right, w, h, -d, ...right, w, h, d, ...right, w, -h, -d, ...right, w, h, d, ...right, w, -h, d, ...right, -w, -h, -d, ...left, -w, -h, d, ...left, -w, h, d, ...left, -w, -h, -d, ...left, -w, h, d, ...left, -w, h, -d, ...left ]); }
 
-// In script.js
-
 function createCarGeometry() { 
-    const carColors = { 
-        top: [1.0, 0.2, 0.2],
-        side: [0.8, 0.0, 0.0],
-        front: [0.6, 0.0, 0.0],
-        bottom: [0.2, 0.0, 0.0]
-    }; 
-    
-    // The back face color is changed back to match the front for original shading
-    const chassisFaceColors = { 
-        front: carColors.front, 
-        back: carColors.front, // [CHANGED] Reverted from carColors.side
-        top: carColors.top, 
-        bottom: carColors.bottom, 
-        right: carColors.side, 
-        left: carColors.side 
-    };
-    
-    // The back of the cabin is also changed back to match the front
-    const cabinFaceColors = { 
-        front: carColors.front, 
-        back: carColors.front, // [CHANGED] Reverted from carColors.side
-        top: carColors.top, 
-        bottom: carColors.top, 
-        right: carColors.side, 
-        left: carColors.side 
-    }; 
-    
+    const carColors = { top: [1.0, 0.2, 0.2], side: [0.8, 0.0, 0.0], front: [0.6, 0.0, 0.0], bottom: [0.2, 0.0, 0.0] }; 
+    const chassisFaceColors = { front: carColors.front, back: carColors.front, top: carColors.top, bottom: carColors.bottom, right: carColors.side, left: carColors.side };
+    const cabinFaceColors = { front: carColors.front, back: carColors.front, top: carColors.top, bottom: carColors.top, right: carColors.side, left: carColors.side }; 
     const chassisVerts = createColoredCubeGeometry(1.0, 0.3, 2.0, chassisFaceColors); 
     for (let i = 0; i < chassisVerts.length; i += 6) { chassisVerts[i+1] -= 0.15; } 
-    
     const cabinVerts = createColoredCubeGeometry(0.8, 0.4, 1.0, cabinFaceColors); 
     for (let i = 0; i < cabinVerts.length; i += 6) { cabinVerts[i+1] += 0.2; cabinVerts[i+2] += 0.2; } 
-    
     const combinedVerts = new Float32Array(chassisVerts.length + cabinVerts.length); 
     combinedVerts.set(chassisVerts, 0); 
     combinedVerts.set(cabinVerts, chassisVerts.length); 
@@ -82,7 +51,6 @@ let lastFrameTime = 0;
 const keysDown = {};
 
 let GRAVITY = 25.0, FORWARD_SPEED = 25.0, STRAFE_SPEED = 15.0, JUMP_STRENGTH = 10.0;
-
 let trackMinGap = 1.8;
 let trackMaxGap = 5.0;
 
@@ -92,6 +60,12 @@ const DIFFICULTY_PRESETS = {
     hard:   { min: 11.3, max: 20.0 }
 };
 
+// --- Mobile/Scaling Elements ---
+const mobileToggleBtn = document.getElementById('mobile-btn');
+const mobileControls = document.getElementById('mobile-controls');
+const screenElement = document.getElementById("screen");
+
+// ============================ Core Initialization ============================
 function respawnPlayer() {
     console.log("Player respawning...");
     vec3.set(carPos, 0, 2, 5);
@@ -104,8 +78,10 @@ function init() {
   cameraTarget = vec3.create();
 
   const canvas = document.getElementById("glCanvas");
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  // Set Fixed Resolution for the Screen Scaling Logic
+  canvas.width = 960;
+  canvas.height = 720;
+
   gl = canvas.getContext("webgl");
   if (!gl) { alert("WebGL not supported."); return; }
 
@@ -116,11 +92,15 @@ function init() {
   textures.track = createCheckerboardTexture(gl);
   trackData = createTrack(100, 12345, trackMinGap, trackMaxGap); 
   initBuffers();
+  
   gl.clearColor(0.20, 0.28, 0.34, 1.0);
   gl.enable(gl.DEPTH_TEST);
   gl.depthFunc(gl.LEQUAL);
 
   setupEventListeners();
+  setupMobileControls();
+  scaleGame(); // Initial scale calculations
+  
   lastFrameTime = performance.now();
   requestAnimationFrame(render);
 }
@@ -136,59 +116,32 @@ function initBuffers() {
 
 function initBuffer(dataArray) { if (!dataArray || dataArray.length === 0) return null; const buffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buffer); gl.bufferData(gl.ARRAY_BUFFER, dataArray, gl.STATIC_DRAW); return buffer; }
 
-// ============================ Game State & Menu Control ============================
+// ============================ Menu & Input ============================
 function closeAllMenus() {
     document.getElementById('helpMenu').classList.add('hidden');
     document.getElementById('optionsMenu').classList.add('hidden');
 }
-
-function pauseGame() {
-    if (gameState === 'playing') {
-        gameState = 'paused';
-    }
-}
-
-function resumeGame() {
-    if (gameState === 'paused') {
-        gameState = 'playing';
-        lastFrameTime = performance.now();
-    }
-}
+function pauseGame() { if (gameState === 'playing') gameState = 'paused'; }
+function resumeGame() { if (gameState === 'paused') { gameState = 'playing'; lastFrameTime = performance.now(); } }
 
 function toggleHelpMenu() {
     const menu = document.getElementById('helpMenu');
-    if (menu.classList.contains('hidden')) {
-        pauseGame();
-        closeAllMenus();
-        menu.classList.remove('hidden');
-    } else {
-        closeAllMenus();
-        resumeGame();
-    }
+    if (menu.classList.contains('hidden')) { pauseGame(); closeAllMenus(); menu.classList.remove('hidden'); } 
+    else { closeAllMenus(); resumeGame(); }
 }
 
 function toggleOptionsMenu() {
     const menu = document.getElementById('optionsMenu');
-    if (menu.classList.contains('hidden')) {
-        pauseGame();
-        closeAllMenus();
-        menu.classList.remove('hidden');
-    } else {
-        closeAllMenus();
-        resumeGame();
-    }
+    if (menu.classList.contains('hidden')) { pauseGame(); closeAllMenus(); menu.classList.remove('hidden'); } 
+    else { closeAllMenus(); resumeGame(); }
 }
 
 function resetMap() {
-    console.log(`Creating new map with distances: [${trackMinGap}, ${trackMaxGap}]`);
     trackData = createTrack(100, undefined, trackMinGap, trackMaxGap);
     initBuffers();
     respawnPlayer();
     score = 0;
-    if (gameState === 'paused') {
-        closeAllMenus();
-        resumeGame();
-    }
+    if (gameState === 'paused') { closeAllMenus(); resumeGame(); }
 }
 
 function setupEventListeners() {
@@ -211,31 +164,15 @@ function setupEventListeners() {
     btnDynamic.addEventListener('click', () => { controlStyle = 'inverted'; btnDynamic.classList.add('active'); btnStatic.classList.remove('active'); cameraDescOptions.textContent = "Camera swings out during turns."; });
     btnStatic.addEventListener('click', () => { controlStyle = 'normal'; btnStatic.classList.add('active'); btnDynamic.classList.remove('active'); cameraDescOptions.textContent = "Camera remains fixed behind the car."; });
     
-    const fwdSpeedSlider = document.getElementById('forward-speed-slider');
-    const fwdSpeedValue = document.getElementById('forward-speed-value');
-    fwdSpeedSlider.value = FORWARD_SPEED; fwdSpeedValue.textContent = FORWARD_SPEED.toFixed(1);
-    fwdSpeedSlider.addEventListener('input', e => { FORWARD_SPEED = parseFloat(e.target.value); fwdSpeedValue.textContent = FORWARD_SPEED.toFixed(1); });
-
-    const strafeSpeedSlider = document.getElementById('strafe-speed-slider');
-    const strafeSpeedValue = document.getElementById('strafe-speed-value');
-    strafeSpeedSlider.value = STRAFE_SPEED; strafeSpeedValue.textContent = STRAFE_SPEED.toFixed(1);
-    strafeSpeedSlider.addEventListener('input', e => { STRAFE_SPEED = parseFloat(e.target.value); strafeSpeedValue.textContent = STRAFE_SPEED.toFixed(1); });
-
-    const jumpSlider = document.getElementById('jump-strength-slider');
-    const jumpValue = document.getElementById('jump-strength-value');
-    jumpSlider.value = JUMP_STRENGTH; jumpValue.textContent = JUMP_STRENGTH.toFixed(1);
-    jumpSlider.addEventListener('input', e => { JUMP_STRENGTH = parseFloat(e.target.value); jumpValue.textContent = JUMP_STRENGTH.toFixed(1); });
-
-    const gravitySlider = document.getElementById('gravity-slider');
-    const gravityValue = document.getElementById('gravity-value');
-    gravitySlider.value = GRAVITY; gravityValue.textContent = GRAVITY.toFixed(1);
-    gravitySlider.addEventListener('input', e => { GRAVITY = parseFloat(e.target.value); gravityValue.textContent = GRAVITY.toFixed(1); });
+    document.getElementById('forward-speed-slider').addEventListener('input', e => { FORWARD_SPEED = parseFloat(e.target.value); document.getElementById('forward-speed-value').textContent = FORWARD_SPEED.toFixed(1); });
+    document.getElementById('strafe-speed-slider').addEventListener('input', e => { STRAFE_SPEED = parseFloat(e.target.value); document.getElementById('strafe-speed-value').textContent = STRAFE_SPEED.toFixed(1); });
+    document.getElementById('jump-strength-slider').addEventListener('input', e => { JUMP_STRENGTH = parseFloat(e.target.value); document.getElementById('jump-strength-value').textContent = JUMP_STRENGTH.toFixed(1); });
+    document.getElementById('gravity-slider').addEventListener('input', e => { GRAVITY = parseFloat(e.target.value); document.getElementById('gravity-value').textContent = GRAVITY.toFixed(1); });
 
     const minDistSlider = document.getElementById('min-dist-slider');
     const minDistValue = document.getElementById('min-dist-value');
     const maxDistSlider = document.getElementById('max-dist-slider');
     const maxDistValue = document.getElementById('max-dist-value');
-    
     minDistSlider.value = trackMinGap; minDistValue.textContent = trackMinGap.toFixed(1);
     maxDistSlider.value = trackMaxGap; maxDistValue.textContent = trackMaxGap.toFixed(1);
 
@@ -256,6 +193,67 @@ function setupEventListeners() {
     document.getElementById('difficulty-medium').addEventListener('click', () => setDifficultyAndReset('medium'));
     document.getElementById('difficulty-hard').addEventListener('click', () => setDifficultyAndReset('hard'));
 }
+
+// ============================ Screen Scaling & Mobile Controls ============================
+function scaleGame() {
+    const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+    const baseWidth = 960;
+    const baseHeight = 720;
+    
+    // Always calculate scale to perfectly fit window proportions
+    const scale = Math.min(window.innerWidth / baseWidth, window.innerHeight / baseHeight);
+    
+    // Always apply the exact scale factor, fitting the window perfectly whether Fullscreen or Windowed
+    screenElement.style.transform = `scale(${scale})`;
+    
+    if (isFullscreen) {
+        document.body.classList.add('mobile-mode'); // Shows touch controls & hides standard UI
+    } else {
+        document.body.classList.remove('mobile-mode');
+    }
+}
+
+function goFull() {
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+}
+
+function setupMobileControls() {
+    if (!mobileControls) return;
+
+    const addControlListener = (element, key) => {
+        const pressKey = (e) => {
+            if(e.cancelable) e.preventDefault(); 
+            keysDown[key] = true;
+        };
+        const releaseKey = (e) => {
+            if(e.cancelable) e.preventDefault();
+            keysDown[key] = false;
+        };
+
+        // Touch & Mouse bindings
+        element.addEventListener('touchstart', pressKey, { passive: false });
+        element.addEventListener('touchend', releaseKey, { passive: false });
+        element.addEventListener('touchcancel', releaseKey, { passive: false });
+        element.addEventListener('mousedown', pressKey);
+        element.addEventListener('mouseup', releaseKey);
+        element.addEventListener('mouseleave', (e) => { if (e.buttons === 1) releaseKey(e); });
+    };
+
+    // Map Buttons to corresponding keyboard keys inside keysDown
+    addControlListener(document.getElementById('mobile-left'), 'a');
+    addControlListener(document.getElementById('mobile-right'), 'd');
+    addControlListener(document.getElementById('mobile-up'), 'w');
+    addControlListener(document.getElementById('mobile-jump'), ' ');
+}
+
+// Listener for resize and button
+window.addEventListener("resize", scaleGame);
+window.addEventListener("fullscreenchange", scaleGame);
+window.addEventListener("webkitfullscreenchange", scaleGame);
+mobileToggleBtn.addEventListener('click', goFull);
+
 
 // ============================ Render Loop ============================
 function render(now) {
@@ -285,11 +283,15 @@ function updateCar(deltaTime) {
     else if (keysDown['d'] || keysDown['arrowright']) strafe = -1;
     let targetSway = (controlStyle === 'inverted') ? -strafe * 4.0 : 0;
     cameraSway = lerp(cameraSway, targetSway, 5.0 * deltaTime);
+    
     if (keysDown[' '] && onGround) carVelocity[1] = JUMP_STRENGTH;
+    
     carVelocity[0] = strafe * STRAFE_SPEED;
     carVelocity[2] = (keysDown['w'] || keysDown['arrowup']) ? FORWARD_SPEED : 0;
+    
     if (!onGround) carVelocity[1] -= GRAVITY * deltaTime;
     vec3.scaleAndAdd(carPos, carPos, carVelocity, deltaTime);
+    
     if (carPos[1] < -20) respawnPlayer();
 }
 
@@ -315,8 +317,20 @@ function drawTexturedObject(bufferObj, texture, modelMatrix, projectionMatrix, v
 function drawColoredObject(bufferObj, modelMatrix, projectionMatrix, viewMatrix) { if (!bufferObj || !bufferObj.buffer || bufferObj.vertexCount === 0) return; gl.useProgram(shaderProgramColor); const stride = 6 * Float32Array.BYTES_PER_ELEMENT; gl.bindBuffer(gl.ARRAY_BUFFER, bufferObj.buffer); gl.vertexAttribPointer(locationsColor.attribs.aPosition, 3, gl.FLOAT, false, stride, 0); gl.enableVertexAttribArray(locationsColor.attribs.aPosition); gl.vertexAttribPointer(locationsColor.attribs.aColor, 3, gl.FLOAT, false, stride, 3 * Float32Array.BYTES_PER_ELEMENT); gl.enableVertexAttribArray(locationsColor.attribs.aColor); gl.uniformMatrix4fv(locationsColor.uniforms.uProjection, false, projectionMatrix); gl.uniformMatrix4fv(locationsColor.uniforms.uView, false, viewMatrix); gl.uniformMatrix4fv(locationsColor.uniforms.uModel, false, modelMatrix); gl.drawArrays(gl.TRIANGLES, 0, bufferObj.vertexCount); }
 
 // ============================ 2D Overlay / HUD ============================
-function updateHUD() { const overlay = document.getElementById("hudCanvas"); const ctx = overlay.getContext("2d"); if (overlay.width !== window.innerWidth || overlay.height !== window.innerHeight) { overlay.width = window.innerWidth; overlay.height = window.innerHeight; } ctx.clearRect(0, 0, overlay.width, overlay.height); ctx.fillStyle = "white"; ctx.font = "bold 32px monospace"; ctx.textAlign = "left"; ctx.fillText(`SCORE: ${score}`, 20, 40); }
+function updateHUD() { 
+    const overlay = document.getElementById("hudCanvas"); 
+    const ctx = overlay.getContext("2d"); 
+    // Always render to the Fixed Logical Grid Size
+    if (overlay.width !== 960 || overlay.height !== 720) { 
+        overlay.width = 960; 
+        overlay.height = 720; 
+    } 
+    ctx.clearRect(0, 0, overlay.width, overlay.height); 
+    ctx.fillStyle = "white"; 
+    ctx.font = "bold 32px monospace"; 
+    ctx.textAlign = "left"; 
+    ctx.fillText(`SCORE: ${score}`, 20, 40); 
+}
 
-// ============================ Window Load & Resize ============================
+// ============================ Window Load ============================
 window.onload = init;
-window.onresize = () => { if (!gl) return; const canvas = document.getElementById("glCanvas"); const overlay = document.getElementById("hudCanvas"); canvas.width = window.innerWidth; canvas.height = window.innerHeight; overlay.width = window.innerWidth; overlay.height = window.innerHeight; gl.viewport(0, 0, gl.canvas.width, gl.canvas.height); };
